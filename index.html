@@ -456,6 +456,9 @@
               <i class="ph-bold ph-upload-simple"></i> Nhập Độc giả từ Excel/CSV
               <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleImportUsersExcel(event)" />
             </label>
+            <button onclick="openPromoteStudentsModal()" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm" title="Tự động nâng khối lớp cho toàn trường khi sang năm học mới">
+              <i class="ph-bold ph-graduation-cap text-base"></i> Chuyển Lớp Năm Học
+            </button>
             <button onclick="openUserModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm">
               <i class="ph-bold ph-user-plus"></i> Thêm Độc giả
             </button>
@@ -1280,6 +1283,55 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: CHUYỂN NĂM HỌC & LÊN LỚP TỰ ĐỘNG ==================== -->
+  <div id="promoteStudentsModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-gradient-to-r from-indigo-900 to-blue-900 p-5 text-white flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-bold flex items-center gap-2">
+            <i class="ph-bold ph-graduation-cap text-amber-400 text-xl"></i> Chuyển Lớp & Niên Khóa Theo Năm Học
+          </h3>
+          <p class="text-xs text-blue-200 mt-0.5">Tự động nâng khối lớp cho toàn bộ học sinh khi sang năm học mới</p>
+        </div>
+        <button onclick="closePromoteStudentsModal()" class="text-white/80 hover:text-white"><i class="ph-bold ph-x text-xl"></i></button>
+      </div>
+      <form onsubmit="handlePromoteStudentsSubmit(event)" class="p-6 space-y-4 text-sm">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Năm học hiện tại (Nguồn)</label>
+            <input type="text" id="promoteFromYear" required value="2026-2027" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-slate-800 text-xs bg-slate-50" readonly />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Năm học mới (Đích) *</label>
+            <input type="text" id="promoteToYear" required placeholder="VD: 2027-2028" value="2027-2028" class="w-full px-3 py-2 rounded-xl border border-indigo-400 font-bold text-indigo-700 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+        </div>
+
+        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+          <p class="font-bold text-slate-800 flex items-center gap-1.5 text-indigo-700">
+            <i class="ph-bold ph-gear"></i> Quy tắc chuyển lớp tự động cho toàn trường:
+          </p>
+          <ul class="space-y-1 text-slate-600 pl-4 list-disc">
+            <li><strong>Khối 10:</strong> Tự động lên Khối 11 (VD: <em>10A1 → 11A1, 10/1 → 11/1</em>).</li>
+            <li><strong>Khối 11:</strong> Tự động lên Khối 12 (VD: <em>11A1 → 12A1, 11/2 → 12/2</em>).</li>
+            <li><strong>Khối 12:</strong> Chuyển thành trạng thái <em>"Đã tốt nghiệp"</em> (vẫn lưu thẻ và lịch sử mượn trả).</li>
+            <li><strong>Giáo viên:</strong> Tự động giữ nguyên tổ chuyên môn (VD: <em>Tin học, Toán...</em>).</li>
+          </ul>
+        </div>
+
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          💡 <strong>Ghi chú:</strong> Hệ thống sẽ lưu giữ lịch sử lớp cũ của từng năm học. Bạn vẫn có thể dùng bộ lọc năm học ở đầu trang để tra cứu lại lớp cũ của học sinh bất cứ lúc nào.
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closePromoteStudentsModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50">Hủy</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md flex items-center gap-1.5">
+            <i class="ph-bold ph-arrow-right"></i> Xác nhận Chuyển Lớp Toàn Trường
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
   <!-- ==================== MODAL 9: SECURITY CENTER & ADMIN PASSWORD (CẤP ĐỘ 1) ==================== -->
   <div id="securityCenterModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
@@ -2647,6 +2699,101 @@ let pendingFirstLoginUser = null;
     }
 
     // HIỂN THỊ BẢNG ĐỘC GIẢ CÓ PHÂN TRANG (MƯỢT MÀ VỚI 4.000+ HỌC SINH)
+    function openPromoteStudentsModal() {
+      const curr = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
+      document.getElementById('promoteFromYear').value = curr;
+      const match = curr.match(/^(\d{4})-(\d{4})$/);
+      if (match) {
+        const y1 = parseInt(match[1]) + 1;
+        const y2 = parseInt(match[2]) + 1;
+        document.getElementById('promoteToYear').value = y1 + '-' + y2;
+      } else {
+        document.getElementById('promoteToYear').value = '';
+      }
+      document.getElementById('promoteStudentsModal').classList.remove('hidden');
+    }
+
+    function closePromoteStudentsModal() {
+      document.getElementById('promoteStudentsModal').classList.add('hidden');
+    }
+
+    function promoteGroupToNextYear(currentGroup) {
+      const g = String(currentGroup || '').trim();
+      if (!/^(10|11|12)/.test(g)) {
+        return g;
+      }
+      if (/^10/.test(g)) {
+        return g.replace(/^10/, '11');
+      }
+      if (/^11/.test(g)) {
+        return g.replace(/^11/, '12');
+      }
+      if (/^12/.test(g)) {
+        return 'Đã tốt nghiệp (' + g + ')';
+      }
+      return g;
+    }
+
+    async function handlePromoteStudentsSubmit(e) {
+      e.preventDefault();
+      const fromYear = document.getElementById('promoteFromYear').value.trim();
+      const toYear = document.getElementById('promoteToYear').value.trim();
+
+      if (!toYear || toYear === fromYear) {
+        showNoticeModal('Năm học không hợp lệ', 'Vui lòng nhập năm học mới khác với năm học hiện tại!');
+        return;
+      }
+
+      openCustomConfirmDialog(
+        'Xác nhận chuyển lớp toàn trường',
+        'Bạn có chắc chắn muốn chuyển toàn bộ học sinh từ năm học ' + fromYear + ' sang năm học mới ' + toYear + '? Khối 10 sẽ lên 11, khối 11 lên 12 và khối 12 chuyển trạng thái tốt nghiệp.',
+        async () => {
+          closePromoteStudentsModal();
+          let p10to11 = 0, p11to12 = 0, grad = 0, teachers = 0;
+
+          db.users.forEach(u => {
+            const oldClass = u.group || '';
+            if (!u.classesHistory) u.classesHistory = {};
+            u.classesHistory[fromYear] = oldClass;
+
+            const newClass = promoteGroupToNextYear(oldClass);
+            u.classesHistory[toYear] = newClass;
+            u.group = newClass;
+            u.schoolYear = toYear;
+
+            if (newClass.startsWith('Đã tốt nghiệp')) {
+              grad++;
+              u.status = 'locked';
+            } else if (/^12/.test(newClass)) {
+              p11to12++;
+            } else if (/^11/.test(newClass)) {
+              p10to11++;
+            } else {
+              teachers++;
+            }
+          });
+
+          db.currentSchoolYear = toYear;
+          const yearSelect = document.getElementById('globalSchoolYearSelect');
+          if (yearSelect && !Array.from(yearSelect.options).some(opt => opt.value === toYear)) {
+            const newOpt = document.createElement('option');
+            newOpt.value = toYear;
+            newOpt.textContent = toYear;
+            yearSelect.insertBefore(newOpt, yearSelect.lastElementChild);
+          }
+          if (yearSelect) yearSelect.value = toYear;
+
+          await saveDB('users');
+          await saveDB('settings');
+          renderAll();
+
+          showNoticeModal(
+            'Chuyển năm học thành công!',
+            'Đã chuyển thành công sang năm học ' + toYear + '!\n- Khối 10 lên 11: ' + p10to11 + ' học sinh\n- Khối 11 lên 12: ' + p11to12 + ' học sinh\n- Khối 12 tốt nghiệp: ' + grad + ' học sinh\n- Thầy cô giữ nguyên: ' + teachers + ' người.'
+          );
+        }
+      );
+    }
     function renderAdminUsers() {
       const q = (document.getElementById('adminUserSearch')?.value || '').toLowerCase().trim();
       const currentYear = db.currentSchoolYear || '2026-2027';
