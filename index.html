@@ -858,20 +858,6 @@
         <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm shadow-md transition">
           Đăng nhập vào hệ thống
         </button>
-
-        <div id="demoQuickLoginSection" class="pt-3 border-t border-slate-200 space-y-2">
-          <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tài khoản thử nghiệm nhanh (1-Click):</p>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" onclick="quickFillLogin('HS12A1-01', '123456')" class="p-2 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-left transition">
-              <span class="text-xs font-bold text-blue-700 block">Độc giả (Học sinh)</span>
-              <span class="text-[11px] text-slate-600 font-mono">Mã: HS12A1-01 / MK: 123456</span>
-            </button>
-            <button type="button" onclick="quickFillLogin('ADMIN', 'admin123')" class="p-2 rounded-xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 text-left transition">
-              <span class="text-xs font-bold text-indigo-700 block">Thủ thư (Admin)</span>
-              <span class="text-[11px] text-slate-600 font-mono">TK: ADMIN / MK: admin123</span>
-            </button>
-          </div>
-        </div>
       </form>
 
       <form id="registerForm" onsubmit="handleRegisterSubmit(event)" class="hidden p-6 space-y-3.5">
@@ -954,7 +940,7 @@
         </div>
 
         <!-- Hộp hiển thị mã OTP khi đang ở Chế độ Thử nghiệm (Tự động ẩn khi BẬT Chế độ Vận hành Thực tế) -->
-        <div id="admin2faDemoHintBox" class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs flex items-center justify-between gap-2">
+        <div id="admin2faDemoHintBox" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs flex items-center justify-between gap-2">
           <div>
             <span class="font-bold text-amber-900 block">Chế độ Thử nghiệm / Dự phòng:</span>
             <span class="text-[11px] text-amber-800">Mã OTP hiện tại: <strong id="admin2faDemoCodeValue" class="font-mono text-sm text-indigo-700">------</strong></span>
@@ -1406,6 +1392,7 @@
     const INITIAL_DB = {
       currentSchoolYear: '2026-2027',
       finePerDay: 5000,
+      productionMode: true,
       adminAccount: { username: 'ADMIN', password: 'admin123', fullName: 'Thủ Thư Quản Trị', email: 'longnv@pct.edu.vn', twoFactorEnabled: true },
       books: [
         { id: 1, code: 'TH12-001', title: 'Sách giáo khoa Tin học 12 - Cánh Diều (Định hướng CS & ICT)', author: 'Hồ Sĩ Đàm, Hồ Cẩm Hà, Nguyễn Thế Lộc', category: 'Tin học & CNTT', publisher: 'NXB Đại học Sư phạm', shelf: 'Kệ A1', total: 15, available: 12, featured: true, desc: 'Tài liệu chuẩn chương trình GDPT 2018 gồm HTML/CSS, Trí tuệ nhân tạo, Mạng máy tính và Cơ sở dữ liệu.' },
@@ -1568,7 +1555,7 @@
       parsed.adminAccount.fullName = sanitizeText(parsed.adminAccount.fullName || 'Thủ Thư Quản Trị');
       parsed.adminAccount.email = sanitizeText(parsed.adminAccount.email || 'longnv@pct.edu.vn');
       if (parsed.adminAccount.twoFactorEnabled === undefined) parsed.adminAccount.twoFactorEnabled = true;
-      parsed.productionMode = Boolean(parsed.productionMode);
+      parsed.productionMode = true;
 
       parsed.users = (parsed.users || []).map(u => ({
         ...u,
