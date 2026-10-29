@@ -1284,10 +1284,21 @@
         <div class="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/60 flex items-center justify-between gap-3">
           <div>
             <p class="font-bold text-slate-800 text-xs">Xác nhận Bảo mật 2 Lớp bằng Email (2FA OTP)</p>
-            <p class="text-[11px] text-slate-600 mt-0.5">Yêu cầu nhập mã OTP 6 số gửi qua Email mỗi khi đăng nhập tài khoản Thủ thư (Admin).</p>
+            <p class="text-[11px] text-slate-600 mt-0.5">Chỉ hỏi mã OTP trên máy tính / trình duyệt mới. Máy tính đã xác thực sẽ được ghi nhớ an toàn.</p>
           </div>
           <button type="button" id="btnToggleAdmin2FA" onclick="toggleAdminTwoFactor()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 transition shadow-sm">
             Đang BẬT
+          </button>
+        </div>
+
+        <!-- Trạng thái thiết bị hiện tại -->
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 text-xs">
+          <div>
+            <span class="font-semibold text-slate-700 block">Trạng thái máy tính hiện tại:</span>
+            <span id="currentDeviceTrustLabel" class="text-[11px] text-emerald-700 font-bold">Đang kiểm tra...</span>
+          </div>
+          <button type="button" onclick="forgetCurrentTrustedDevice()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-rose-50 hover:text-rose-600 text-slate-600 text-[11px] font-semibold transition">
+            Quên máy này
           </button>
         </div>
 
@@ -3971,12 +3982,32 @@ async function sendOverdueEmail(id) {
         demoSection.classList.toggle('hidden', Boolean(db.productionMode));
       }
       const is2FAOn = db.adminAccount.twoFactorEnabled !== false;
+      const isDeviceTrusted = (() => {
+        try {
+          const raw = localStorage.getItem('SMARTLIB_TRUSTED_ADMIN_STAMP');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const token = localStorage.getItem('SMARTLIB_TRUSTED_DEVICE_ID');
+            return Boolean(parsed.verified && parsed.deviceToken === token);
+          }
+        } catch (e) {}
+        return false;
+      })();
+
+      const labelTrust = document.getElementById('currentDeviceTrustLabel');
+      if (labelTrust) {
+        labelTrust.className = isDeviceTrusted ? 'text-[11px] text-emerald-700 font-bold' : 'text-[11px] text-amber-700 font-bold';
+        labelTrust.textContent = isDeviceTrusted ? '✓ Đã xác nhận tin cậy (Không hỏi lại OTP)' : 'Chưa xác thực (Sẽ hỏi mã OTP khi đăng nhập)';
+      }
+
       const badge2FA = document.getElementById('secStatus2FABadge');
       if (badge2FA) {
         badge2FA.className = is2FAOn
           ? 'font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200'
           : 'font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200';
-        badge2FA.textContent = is2FAOn ? `Đang BẬT (${db.adminAccount.email || 'Chưa có email'})` : 'Đang Tắt';
+        badge2FA.textContent = is2FAOn
+          ? (isDeviceTrusted ? 'Bật (Chỉ hỏi máy mới - Máy này: Đã nhớ)' : 'Bật (Yêu cầu xác thực máy mới)')
+          : 'Đang Tắt';
       }
       const btn2FA = document.getElementById('btnToggleAdmin2FA');
       if (btn2FA) {
@@ -4038,78 +4069,60 @@ async function sendOverdueEmail(id) {
     let admin2faCountdownInterval = null;
 
     const TRUSTED_DEVICE_STORAGE_KEY = 'SMARTLIB_TRUSTED_DEVICE_ID';
-    let lastDetectedLoginContext = { ip: 'LOCAL_LAN', deviceHash: '', reason: '' };
+    const TRUSTED_STAMP_STORAGE_KEY = 'SMARTLIB_TRUSTED_ADMIN_STAMP';
+    let lastDetectedLoginContext = { deviceToken: '', reason: '' };
 
-    // 1. Lấy địa chỉ IP công cộng hiện tại (timeout 2.5 giây, nếu mất mạng dùng LOCAL_LAN)
-    async function getCurrentClientIP() {
+    // 1. Lấy hoặc tạo mã định danh duy nhất (Device Token) cho máy tính / trình duyệt này
+    function getOrCreateDeviceToken() {
+      let token = '';
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 2500);
-        const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
-        clearTimeout(timer);
-        const data = await res.json();
-        return data.ip || 'LOCAL_LAN';
-      } catch (e) {
-        return 'LOCAL_LAN';
-      }
-    }
-
-    // 2. Tạo mã vân tay định danh riêng cho máy tính + trình duyệt hiện tại
-    function getOrCreateDeviceFingerprint() {
-      let deviceToken = '';
-      try {
-        deviceToken = localStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY) || '';
-        if (!deviceToken) {
-          deviceToken = 'DEV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
-          localStorage.setItem(TRUSTED_DEVICE_STORAGE_KEY, deviceToken);
+        token = localStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY) || '';
+        if (!token) {
+          token = 'DEV_' + Date.now() + '_' + Math.random().toString(36).slice(2, 12);
+          localStorage.setItem(TRUSTED_DEVICE_STORAGE_KEY, token);
         }
       } catch (e) {
-        deviceToken = 'SESSION_ONLY_DEV';
+        token = 'SESSION_DEV';
       }
-      const hwInfo = [
-        navigator.platform || '',
-        navigator.language || '',
-        screen.width + 'x' + screen.height,
-        Intl.DateTimeFormat().resolvedOptions().timeZone || ''
-      ].join('|');
-      return sha256Hex('DEVICE_FP::' + deviceToken + '::' + hwInfo);
+      return token;
     }
 
-    const TRUSTED_STAMP_STORAGE_KEY = 'SMARTLIB_TRUSTED_ADMIN_STAMP';
-
-    // 3. Kiểm tra xem Máy tính + IP hiện tại đã được xác thực OTP trước đó chưa
+    // 2. Kiểm tra xem Máy tính hiện tại đã được xác thực OTP trước đó chưa
     async function checkTrustedAdminDeviceAndIP() {
-      // Khôi phục email nhận OTP riêng của bạn nếu bị Cloud ghi đè
+      // Khôi phục email nhận OTP riêng của Admin nếu bị Cloud ghi đè
       const savedAdminEmail = localStorage.getItem('SMARTLIB_ADMIN_2FA_EMAIL');
       if (savedAdminEmail) db.adminAccount.email = savedAdminEmail;
 
-      const currentIP = await getCurrentClientIP();
-      const deviceHash = getOrCreateDeviceFingerprint();
+      const deviceToken = getOrCreateDeviceToken();
 
-      // Đọc dấu xác thực lưu độc lập trên máy tính này (không bị syncFromCloud xóa mất)
+      // Đọc dấu xác thực tin cậy lưu trên máy tính này
       let localStamp = null;
       try {
         const raw = localStorage.getItem(TRUSTED_STAMP_STORAGE_KEY);
         if (raw) localStamp = JSON.parse(raw);
       } catch (e) {}
 
-      if (!localStamp || localStamp.deviceHash !== deviceHash) {
-        lastDetectedLoginContext = { ip: currentIP, deviceHash, reason: `Thiết bị/Trình duyệt mới (IP: ${currentIP})` };
-        return { trusted: false, ...lastDetectedLoginContext };
+      // Nếu máy tính này ĐÃ xác nhận OTP trước đó -> Tin cậy 100%, bỏ qua OTP
+      if (localStamp && localStamp.verified === true && localStamp.deviceToken === deviceToken) {
+        lastDetectedLoginContext = {
+          trusted: true,
+          deviceToken,
+          verifiedAt: localStamp.verifiedAt || '',
+          reason: 'Máy tính đã được xác thực tin cậy'
+        };
+        return { trusted: true, ...lastDetectedLoginContext };
       }
 
-      // Chỉ hỏi lại OTP nếu cả 2 lần đều lấy được IP thật (khác LOCAL_LAN) và 2 IP khác nhau
-      const savedIP = localStamp.ip || 'LOCAL_LAN';
-      if (savedIP !== 'LOCAL_LAN' && currentIP !== 'LOCAL_LAN' && savedIP !== currentIP) {
-        lastDetectedLoginContext = { ip: currentIP, deviceHash, reason: `Địa chỉ IP mạng mới (${currentIP}, trước đó: ${savedIP})` };
-        return { trusted: false, ...lastDetectedLoginContext };
-      }
-
-      lastDetectedLoginContext = { ip: currentIP, deviceHash, reason: 'Thiết bị & IP quen thuộc' };
-      return { trusted: true, ...lastDetectedLoginContext };
+      // Ngược lại nếu là máy tính khác (hoặc trình duyệt mới chưa xác nhận) -> Yêu cầu OTP
+      lastDetectedLoginContext = {
+        trusted: false,
+        deviceToken,
+        reason: 'Máy tính / Trình duyệt mới chưa xác thực'
+      };
+      return { trusted: false, ...lastDetectedLoginContext };
     }
 
-    // 4. Lưu dấu Máy tính & IP quen thuộc + Email Admin vào vùng nhớ độc lập ngay khi nhập đúng OTP
+    // 3. Ghi nhớ máy tính này là thiết bị tin cậy ngay khi nhập đúng mã OTP
     async function markCurrentDeviceAndIPTrusted() {
       const emailInput = document.getElementById('admin2faTargetEmailInput')?.value.trim();
       if (emailInput && emailInput.includes('@')) {
@@ -4117,16 +4130,11 @@ async function sendOverdueEmail(id) {
         try { localStorage.setItem('SMARTLIB_ADMIN_2FA_EMAIL', emailInput); } catch (e) {}
       }
 
-      const currentIP = (lastDetectedLoginContext.ip && lastDetectedLoginContext.ip !== 'LOCAL_LAN')
-        ? lastDetectedLoginContext.ip
-        : await getCurrentClientIP();
-      const deviceHash = getOrCreateDeviceFingerprint();
-
+      const deviceToken = getOrCreateDeviceToken();
       const stampRecord = {
         verified: true,
-        deviceHash,
-        ip: currentIP,
-        updatedAt: new Date().toLocaleString('vi-VN')
+        deviceToken,
+        verifiedAt: new Date().toLocaleString('vi-VN')
       };
 
       try {
@@ -4134,6 +4142,15 @@ async function sendOverdueEmail(id) {
       } catch (e) {}
 
       await saveDB('settings');
+    }
+
+    // 4. Xóa ghi nhớ thiết bị tin cậy trên máy tính này (để thử nghiệm hoặc khi muốn bắt buộc nhập lại OTP)
+    function forgetCurrentTrustedDevice() {
+      try {
+        localStorage.removeItem(TRUSTED_STAMP_STORAGE_KEY);
+      } catch (e) {}
+      updateSecurityModalUI();
+      showToast('Đã xóa ghi nhớ máy tính này! Lần đăng nhập sau sẽ yêu cầu mã OTP.');
     }
 
     function generateSecure6DigitOTP() {
