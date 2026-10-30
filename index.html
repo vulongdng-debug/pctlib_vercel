@@ -472,6 +472,9 @@
         <button onclick="switchAdminTab('scanner'); focusScannerInput();" id="admin-tab-btn-scanner" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-emerald-700 hover:text-emerald-900 bg-emerald-50/70 rounded-t-xl flex items-center gap-2">
           <i class="ph-bold ph-barcode text-lg"></i> 4. Quầy Súng Quét Mã Vạch (POS Siêu Tốc)
         </button>
+        <button onclick="switchAdminTab('stats'); renderAdminDeepStats();" id="admin-tab-btn-stats" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-indigo-700 hover:text-indigo-900 bg-indigo-50/70 rounded-t-xl flex items-center gap-2">
+          <i class="ph-bold ph-chart-pie-slice text-lg"></i> 5. Báo Cáo & Thống Kê Thư Viện
+        </button>
       </div>
 
       <!-- Tab 1: Books -->
@@ -776,6 +779,140 @@
       </div>
     </section>
 
+    <!-- Tab 5: BÁO CÁO & THỐNG KÊ HOẠT ĐỘNG THƯ VIỆN -->
+      <div id="admin-tab-stats" class="hidden space-y-6">
+        <!-- Toolbar -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Báo Cáo & Phân Tích Thư Viện</span>
+            <h3 class="text-lg font-bold text-slate-900 mt-0.5">Bảng Thống Kê Hoạt Động & Thị Hiếu Đọc</h3>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
+              <span class="text-slate-500 font-medium">Kỳ thống kê:</span>
+              <select id="statsPeriodFilter" onchange="renderAdminDeepStats()" class="bg-transparent font-bold text-indigo-700 focus:outline-none cursor-pointer">
+                <option value="ALL">Toàn bộ thời gian</option>
+                <option value="CURRENT_YEAR" selected>Năm học hiện tại</option>
+                <option value="THIS_MONTH">Tháng này</option>
+                <option value="OVERDUE_ONLY">Chỉ sách quá hạn</option>
+              </select>
+            </div>
+            <button onclick="exportStatsReportExcel()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+              <i class="ph-bold ph-file-xls text-base"></i> Xuất Báo Cáo Excel
+            </button>
+            <button onclick="window.print()" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+              <i class="ph-bold ph-printer text-base"></i> In Báo Cáo Tổng Kết
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 Thẻ KPI Tổng Quan -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500">Tỷ lệ sách đang lưu hành</p>
+              <h4 id="statCirculationRate" class="text-2xl font-bold text-indigo-700 mt-1">0%</h4>
+              <span id="statCirculationSub" class="text-xs text-slate-500 mt-0.5 block">0 bản in đang mượn</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl"><i class="ph-duotone ph-book-open"></i></div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500">Tỷ lệ trả đúng hạn</p>
+              <h4 id="statOnTimeRate" class="text-2xl font-bold text-emerald-600 mt-1">100%</h4>
+              <span id="statOnTimeSub" class="text-xs text-emerald-700 mt-0.5 block">Rất tích cực</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl"><i class="ph-duotone ph-check-circle"></i></div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500">Tổng số lượt phục vụ</p>
+              <h4 id="statTotalBorrowTurns" class="text-2xl font-bold text-blue-600 mt-1">0</h4>
+              <span id="statTotalBorrowTurnsSub" class="text-xs text-slate-500 mt-0.5 block">Lượt mượn trong kỳ</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl"><i class="ph-duotone ph-arrows-left-right"></i></div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500">Độc giả có phát sinh mượn</p>
+              <h4 id="statActiveReadersCount" class="text-2xl font-bold text-amber-600 mt-1">0</h4>
+              <span id="statActiveReadersSub" class="text-xs text-slate-500 mt-0.5 block">Độc giả tham gia đọc</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl"><i class="ph-duotone ph-users"></i></div>
+          </div>
+        </div>
+
+        <!-- Bảng Top Sách & Top Bạn Đọc -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
+            <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><i class="ph-bold ph-trophy text-lg"></i></div>
+                <div><h4 class="font-bold text-slate-800 text-sm">Top Sách Được Mượn Nhiều Nhất</h4><p class="text-[11px] text-slate-500">Thị hiếu đọc của học sinh</p></div>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700">Yêu thích nhất</span>
+            </div>
+            <div id="statTopBooksList" class="p-4 divide-y divide-slate-100 flex-1"></div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
+            <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><i class="ph-bold ph-medal text-lg"></i></div>
+                <div><h4 class="font-bold text-slate-800 text-sm">Top Bạn Đọc Tích Cực Nhất</h4><p class="text-[11px] text-slate-500">Mượn đọc nhiều sách nhất</p></div>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700">Gương sáng đọc sách</span>
+            </div>
+            <div id="statTopReadersList" class="p-4 divide-y divide-slate-100 flex-1"></div>
+          </div>
+        </div>
+
+        <!-- Cơ cấu thể loại & Khối lớp -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="ph-bold ph-chart-pie text-indigo-600 text-lg"></i> Thống Kê Theo Thể Loại Sách</h4>
+              <span class="text-xs text-slate-500">Cơ cấu mượn đọc</span>
+            </div>
+            <div id="statCategoryBars" class="space-y-3"></div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="ph-bold ph-student text-emerald-600 text-lg"></i> Lượt Mượn Theo Khối Lớp & Giáo Viên</h4>
+              <span class="text-xs text-slate-500">Phong trào các khối</span>
+            </div>
+            <div id="statGradeBars" class="space-y-3"></div>
+          </div>
+        </div>
+
+        <!-- Bảng sách quá hạn -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-rose-50/40">
+            <div>
+              <h4 class="font-bold text-rose-900 text-sm flex items-center gap-2"><i class="ph-bold ph-warning-circle text-rose-600 text-lg"></i> Danh Sách Bạn Đọc Quá Hạn Cần Thu Hồi</h4>
+              <p class="text-xs text-rose-700 mt-0.5">Thời gian trễ hạn và phí phạt đôn đốc thu hồi</p>
+            </div>
+            <span id="statOverdueBadgeCount" class="px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 w-fit">0 phiếu quá hạn</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 text-xs uppercase">
+                  <th class="py-3 px-4">Mã Phiếu</th>
+                  <th class="py-3 px-4">Bạn đọc</th>
+                  <th class="py-3 px-4">Sách đang nợ</th>
+                  <th class="py-3 px-4">Ngày mượn - Hạn trả</th>
+                  <th class="py-3 px-4 text-center">Số ngày trễ</th>
+                  <th class="py-3 px-4">Phí phạt tạm tính</th>
+                  <th class="py-3 px-4 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="statOverdueTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     <!-- VISUAL EDITOR TOOLBAR (ADMIN ONLY) -->
     <div id="visualEditorToolbar" style="display: none;" class="fixed bottom-5 left-5 z-40 bg-slate-900/95 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-2xl shadow-2xl border border-slate-700 flex flex-wrap items-center gap-2.5 text-xs">
       <button onclick="toggleVisualEditText()" id="btnVisualEdit" class="px-3 py-1.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-500 font-semibold flex items-center gap-1.5 transition">
@@ -2733,26 +2870,203 @@ let pendingFirstLoginUser = null;
     }
 
     // ==================== ADMIN DASHBOARD ====================
+    // ==================== CÔNG CỤ THỐNG KÊ & BÁO CÁO THỦ THƯ ====================
+    function renderAdminDeepStats() {
+      const period = document.getElementById('statsPeriodFilter')?.value || 'CURRENT_YEAR';
+      const currentYear = db.currentSchoolYear || '2026-2027';
+      const today = new Date();
+      const currentMonthStr = today.toISOString().slice(0, 7);
+
+      const filteredBorrows = db.borrows.filter(b => {
+        if (period === 'CURRENT_YEAR' && currentYear !== 'ALL') return (b.schoolYear || '2026-2027') === currentYear;
+        if (period === 'THIS_MONTH') return b.borrowDate && b.borrowDate.startsWith(currentMonthStr);
+        if (period === 'OVERDUE_ONLY') return isOverdue(b);
+        return true;
+      });
+
+      const totalCopies = db.books.reduce((sum, b) => sum + (Number(b.total) || 0), 0);
+      const activeBorrowCount = db.borrows.filter(b => b.status === 'borrowing').length;
+      const circulationRate = totalCopies > 0 ? ((activeBorrowCount / totalCopies) * 100).toFixed(1) : 0;
+
+      const returnedBorrows = filteredBorrows.filter(b => b.status === 'returned');
+      const onTimeReturns = returnedBorrows.filter(b => !b.returnDate || !b.dueDate || new Date(b.returnDate) <= new Date(b.dueDate)).length;
+      const onTimeRate = returnedBorrows.length > 0 ? ((onTimeReturns / returnedBorrows.length) * 100).toFixed(1) : 100;
+
+      const activeUserIds = new Set(filteredBorrows.map(b => b.userId));
+
+      const elCirc = document.getElementById('statCirculationRate');
+      if (elCirc) elCirc.textContent = `${circulationRate}%`;
+      const elCircSub = document.getElementById('statCirculationSub');
+      if (elCircSub) elCircSub.textContent = `${activeBorrowCount} / ${totalCopies} bản in đang lưu hành`;
+
+      const elOnTime = document.getElementById('statOnTimeRate');
+      if (elOnTime) elOnTime.textContent = `${onTimeRate}%`;
+      const elOnTimeSub = document.getElementById('statOnTimeSub');
+      if (elOnTimeSub) elOnTimeSub.textContent = `${onTimeReturns}/${returnedBorrows.length} phiếu trả đúng hạn`;
+
+      const elTotalTurns = document.getElementById('statTotalBorrowTurns');
+      if (elTotalTurns) elTotalTurns.textContent = filteredBorrows.length.toLocaleString('vi-VN');
+
+      const elActiveReaders = document.getElementById('statActiveReadersCount');
+      if (elActiveReaders) elActiveReaders.textContent = activeUserIds.size.toLocaleString('vi-VN');
+      const elActiveReadersSub = document.getElementById('statActiveReadersSub');
+      if (elActiveReadersSub) elActiveReadersSub.textContent = `Trên tổng ${db.users.length} bạn đọc`;
+
+      // Top Sách
+      const bookBorrowMap = {};
+      filteredBorrows.forEach(b => { bookBorrowMap[b.bookId] = (bookBorrowMap[b.bookId] || 0) + 1; });
+      const topBooks = Object.keys(bookBorrowMap).map(id => ({ book: db.books.find(x => x.id == id), count: bookBorrowMap[id] })).filter(x => x.book).sort((a, b) => b.count - a.count).slice(0, 5);
+      const maxBookCount = topBooks.length > 0 ? topBooks[0].count : 1;
+      const topBooksContainer = document.getElementById('statTopBooksList');
+      if (topBooksContainer) {
+        topBooksContainer.innerHTML = topBooks.length === 0 ? '<div class="py-8 text-center text-xs text-slate-400">Chưa có dữ liệu mượn sách trong kỳ này.</div>' : topBooks.map((item, idx) => `
+          <div class="py-2.5 flex items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-6 h-6 rounded-lg ${idx === 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'} flex items-center justify-center font-bold text-xs shrink-0">${idx + 1}</span>
+              <div class="min-w-0"><p class="font-bold text-slate-900 truncate">${item.book.title}</p><p class="text-[11px] text-slate-500">${item.book.author} • <span class="text-blue-700 font-mono">${item.book.code}</span></p></div>
+            </div>
+            <div class="text-right shrink-0 w-28"><span class="font-bold text-blue-700 text-xs">${item.count} lượt</span><div class="w-full bg-slate-100 h-1.5 rounded-full mt-1 overflow-hidden"><div class="bg-blue-600 h-full rounded-full" style="width: ${Math.round((item.count/maxBookCount)*100)}%"></div></div></div>
+          </div>
+        `).join('');
+      }
+
+      // Top Bạn Đọc
+      const userBorrowMap = {};
+      filteredBorrows.forEach(b => { userBorrowMap[b.userId] = (userBorrowMap[b.userId] || 0) + 1; });
+      const topUsers = Object.keys(userBorrowMap).map(id => ({ user: db.users.find(u => u.id == id), count: userBorrowMap[id] })).filter(x => x.user).sort((a, b) => b.count - a.count).slice(0, 5);
+      const maxUserCount = topUsers.length > 0 ? topUsers[0].count : 1;
+      const topUsersContainer = document.getElementById('statTopReadersList');
+      if (topUsersContainer) {
+        topUsersContainer.innerHTML = topUsers.length === 0 ? '<div class="py-8 text-center text-xs text-slate-400">Chưa có dữ liệu bạn đọc trong kỳ này.</div>' : topUsers.map((item, idx) => `
+          <div class="py-2.5 flex items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-6 h-6 flex items-center justify-center font-bold text-sm shrink-0">${idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`))}</span>
+              <div class="min-w-0"><p class="font-bold text-slate-900 truncate">${item.user.fullName}</p><p class="text-[11px] text-slate-500">Lớp: <strong>${item.user.group}</strong> • Mã: <span class="font-mono text-indigo-700">${item.user.cardCode}</span></p></div>
+            </div>
+            <div class="text-right shrink-0 w-28"><span class="font-bold text-indigo-700 text-xs">${item.count} cuốn</span><div class="w-full bg-slate-100 h-1.5 rounded-full mt-1 overflow-hidden"><div class="bg-indigo-600 h-full rounded-full" style="width: ${Math.round((item.count/maxUserCount)*100)}%"></div></div></div>
+          </div>
+        `).join('');
+      }
+
+      // Thể loại & Khối lớp
+      const catCountMap = {};
+      filteredBorrows.forEach(b => { const bk = db.books.find(x => x.id === b.bookId); const cat = bk ? bk.category : 'Khác'; catCountMap[cat] = (catCountMap[cat] || 0) + 1; });
+      const catTotal = Object.values(catCountMap).reduce((s, v) => s + v, 0) || 1;
+      const catContainer = document.getElementById('statCategoryBars');
+      if (catContainer) {
+        catContainer.innerHTML = Object.keys(catCountMap).sort((a,b)=>catCountMap[b]-catCountMap[a]).map(cat => `
+          <div><div class="flex items-center justify-between text-xs font-semibold mb-1"><span class="text-slate-700">${cat}</span><span class="text-indigo-700 font-bold">${catCountMap[cat]} lượt (${Math.round((catCountMap[cat]/catTotal)*100)}%)</span></div><div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden"><div class="bg-indigo-600 h-full rounded-full" style="width: ${Math.round((catCountMap[cat]/catTotal)*100)}%"></div></div></div>
+        `).join('');
+      }
+
+      const gradeCountMap = { 'Khối 10': 0, 'Khối 11': 0, 'Khối 12': 0, 'Giáo viên': 0, 'Khác': 0 };
+      filteredBorrows.forEach(b => {
+        const u = db.users.find(x => x.id === b.userId);
+        const grp = u ? (u.group || '') : '';
+        if (/^10/.test(grp)) gradeCountMap['Khối 10']++;
+        else if (/^11/.test(grp)) gradeCountMap['Khối 11']++;
+        else if (/^12/.test(grp)) gradeCountMap['Khối 12']++;
+        else if (grp.includes('Tổ') || grp.includes('học') || /^(GV|Tin|Toán|Văn|Anh|Lý|Hóa)/i.test(grp)) gradeCountMap['Giáo viên']++;
+        else gradeCountMap['Khác']++;
+      });
+      const gradeTotal = filteredBorrows.length || 1;
+      const gradeContainer = document.getElementById('statGradeBars');
+      if (gradeContainer) {
+        gradeContainer.innerHTML = Object.keys(gradeCountMap).map(k => `
+          <div><div class="flex items-center justify-between text-xs font-semibold mb-1"><span class="text-slate-700">${k}</span><span class="text-emerald-700 font-bold">${gradeCountMap[k]} lượt (${Math.round((gradeCountMap[k]/gradeTotal)*100)}%)</span></div><div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden"><div class="bg-emerald-600 h-full rounded-full" style="width: ${Math.round((gradeCountMap[k]/gradeTotal)*100)}%"></div></div></div>
+        `).join('');
+      }
+
+      // Danh sách quá hạn
+      const overdueList = db.borrows.filter(b => isOverdue(b));
+      const badgeOverdue = document.getElementById('statOverdueBadgeCount');
+      if (badgeOverdue) badgeOverdue.textContent = `${overdueList.length} phiếu quá hạn`;
+      const tbodyOverdue = document.getElementById('statOverdueTableBody');
+      if (tbodyOverdue) {
+        tbodyOverdue.innerHTML = overdueList.length === 0 ? '<tr><td colspan="7" class="py-8 text-center text-xs text-emerald-700 font-medium">Tuyệt vời! Hiện không có cuốn sách nào bị trễ hạn hoàn trả.</td></tr>' : overdueList.map(b => {
+          const u = db.users.find(x => x.id === b.userId) || { fullName: 'Đã xóa', cardCode: '---', group: '---' };
+          const bk = db.books.find(x => x.id === b.bookId) || { title: 'Đã xóa', code: '---' };
+          const dueDays = Math.max(1, Math.floor((new Date() - new Date(b.dueDate)) / (1000 * 60 * 60 * 24)));
+          return `
+            <tr class="hover:bg-rose-50/50 text-xs">
+              <td class="py-3 px-4 font-mono font-bold text-rose-700">${b.ticketCode}</td>
+              <td class="py-3 px-4"><p class="font-bold text-slate-800">${u.fullName}</p><p class="text-[11px] text-slate-500">Lớp: ${u.group} • Mã: ${u.cardCode}</p></td>
+              <td class="py-3 px-4"><p class="font-semibold text-slate-900">${bk.title}</p><p class="text-[11px] font-mono text-slate-400">${bk.code}</p></td>
+              <td class="py-3 px-4 text-slate-600">${b.borrowDate} → <strong class="text-rose-700">${b.dueDate}</strong></td>
+              <td class="py-3 px-4 text-center font-bold text-rose-600">Trễ ${dueDays} ngày</td>
+              <td class="py-3 px-4 font-bold text-rose-700">${calculateFine(b).toLocaleString('vi-VN')}đ</td>
+              <td class="py-3 px-4 text-right space-x-1.5">
+                <button onclick="markBorrowReturned(${b.id})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-[11px]">Thu hồi trả</button>
+                <button onclick="sendOverdueEmail(${b.id})" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg font-semibold text-[11px]">Gửi Email</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    function exportStatsReportExcel() {
+      if (!window.XLSX) return;
+      const currentYear = db.currentSchoolYear || '2026-2027';
+      const wb = XLSX.utils.book_new();
+      const totalCopies = db.books.reduce((s, b) => s + (Number(b.total) || 0), 0);
+      const activeBorrow = db.borrows.filter(b => b.status === 'borrowing').length;
+      const overdueList = db.borrows.filter(b => isOverdue(b));
+
+      const overviewData = [
+        { ChiTieu: 'BÁO CÁO THỐNG KÊ HOẠT ĐỘNG THƯ VIỆN THPT PHAN CHÂU TRINH', GiaTri: '' },
+        { ChiTieu: 'Năm học báo cáo', GiaTri: currentYear },
+        { ChiTieu: 'Ngày xuất báo cáo', GiaTri: new Date().toLocaleDateString('vi-VN') },
+        { ChiTieu: 'Tổng số đầu sách trong kho', GiaTri: db.books.length },
+        { ChiTieu: 'Tổng số bản in tài liệu', GiaTri: totalCopies },
+        { ChiTieu: 'Số bản in đang phục vụ bạn đọc', GiaTri: activeBorrow },
+        { ChiTieu: 'Tỷ lệ sách đang lưu hành', GiaTri: ((activeBorrow / (totalCopies || 1)) * 100).toFixed(1) + '%' },
+        { ChiTieu: 'Tổng số bạn đọc đã cấp thẻ', GiaTri: db.users.length },
+        { ChiTieu: 'Tổng số lượt mượn sách', GiaTri: db.borrows.length },
+        { ChiTieu: 'Số lượt mượn quá hạn', GiaTri: overdueList.length }
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(overviewData), 'Tong_Quan');
+
+      const bookBorrowMap = {};
+      db.borrows.forEach(b => { bookBorrowMap[b.bookId] = (bookBorrowMap[b.bookId] || 0) + 1; });
+      const topBooks = Object.keys(bookBorrowMap).map(id => {
+        const bk = db.books.find(x => x.id == id);
+        return { MaSach: bk ? bk.code : '---', TenSach: bk ? bk.title : '---', TheLoai: bk ? bk.category : '---', SoLuotMuon: bookBorrowMap[id] };
+      }).sort((a,b)=>b.SoLuotMuon - a.SoLuotMuon);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(topBooks), 'Top_Sach');
+
+      const userBorrowMap = {};
+      db.borrows.forEach(b => { userBorrowMap[b.userId] = (userBorrowMap[b.userId] || 0) + 1; });
+      const topUsers = Object.keys(userBorrowMap).map(id => {
+        const u = db.users.find(x => x.id == id);
+        return { MaThe: u ? u.cardCode : '---', HoVaTen: u ? u.fullName : '---', Lop: u ? u.group : '---', SoCuonDaMuon: userBorrowMap[id] };
+      }).sort((a,b)=>b.SoCuonDaMuon - a.SoCuonDaMuon);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(topUsers), 'Top_Doc_Gia');
+
+      XLSX.writeFile(wb, `SmartLib_Bao_Cao_${currentYear}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast('Đã xuất báo cáo thống kê đầy đủ ra file Excel!');
+    }
+
     function switchAdminTab(tab) {
-      ['books', 'users', 'borrows', 'scanner'].forEach(t => {
+      ['books', 'users', 'borrows', 'scanner', 'stats'].forEach(t => {
         const panel = document.getElementById(`admin-tab-${t}`);
         if (panel) panel.classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`admin-tab-btn-${t}`);
         if (!btn) return;
         if (t === 'scanner') {
-          btn.className = t === tab
-            ? 'px-4 py-2.5 text-sm font-bold border-b-2 border-emerald-600 text-emerald-700 bg-emerald-50 rounded-t-xl flex items-center gap-2'
-            : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-emerald-700 hover:text-emerald-900 bg-emerald-50/60 rounded-t-xl flex items-center gap-2';
+          btn.className = t === tab ? 'px-4 py-2.5 text-sm font-bold border-b-2 border-emerald-600 text-emerald-700 bg-emerald-50 rounded-t-xl flex items-center gap-2' : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-emerald-700 hover:text-emerald-900 bg-emerald-50/60 rounded-t-xl flex items-center gap-2';
+        } else if (t === 'stats') {
+          btn.className = t === tab ? 'px-4 py-2.5 text-sm font-bold border-b-2 border-indigo-600 text-indigo-700 bg-indigo-50 rounded-t-xl flex items-center gap-2' : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-indigo-700 hover:text-indigo-900 bg-indigo-50/60 rounded-t-xl flex items-center gap-2';
         } else {
-          btn.className = t === tab
-            ? 'px-4 py-2.5 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 flex items-center gap-2'
-            : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 flex items-center gap-2';
+          btn.className = t === tab ? 'px-4 py-2.5 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 flex items-center gap-2' : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 flex items-center gap-2';
         }
       });
       if (tab === 'scanner') {
         renderPosScannerStation();
-      updateSecurityModalUI();
+        updateSecurityModalUI();
         setTimeout(focusScannerInput, 80);
+      } else if (tab === 'stats') {
+        renderAdminDeepStats();
       }
     }
 
