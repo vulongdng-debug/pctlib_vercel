@@ -520,9 +520,17 @@
       <!-- Tab 2: Users (WITH PAGINATION FOR 4,000+ USERS) -->
       <div id="admin-tab-users" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div class="relative flex-1 max-w-md">
-            <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="text" id="adminUserSearch" oninput="adminUserPage = 1; renderAdminUsers()" placeholder="Tìm mã thẻ, họ tên, lớp/tổ chuyên môn, email..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-500" />
+          <div class="flex flex-wrap items-center gap-2.5 flex-1 max-w-xl">
+            <div class="relative flex-1 min-w-[200px]">
+              <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="text" id="adminUserSearch" oninput="adminUserPage = 1; renderAdminUsers()" placeholder="Tìm mã thẻ, họ tên, lớp/tổ, email..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <!-- Bộ lọc phân loại Giáo viên / Học sinh -->
+            <select id="adminUserTypeFilter" onchange="adminUserPage = 1; renderAdminUsers()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:border-blue-500 shadow-xs cursor-pointer">
+              <option value="ALL">Tất cả đối tượng</option>
+              <option value="student">🎓 Chỉ Học sinh</option>
+              <option value="teacher">👨‍🏫 Chỉ Giáo viên / Cán bộ</option>
+            </select>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <button onclick="downloadUserTemplate()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5">
@@ -1301,6 +1309,20 @@
       </div>
       <form onsubmit="saveUserForm(event)" class="p-6 space-y-3.5 text-sm">
         <input type="hidden" id="editUserId" />
+          <!-- Phân loại bạn đọc: Học sinh vs Giáo viên -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Đối tượng bạn đọc *</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-blue-200 bg-blue-50/60 cursor-pointer hover:bg-blue-100/60 transition">
+              <input type="radio" name="formUserType" id="formUserTypeStudent" value="student" checked onchange="handleUserTypeChange('student')" class="text-blue-600 focus:ring-blue-500" />
+              <span class="text-xs font-bold text-blue-900 flex items-center gap-1">🎓 Học sinh</span>
+            </label>
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-purple-200 bg-purple-50/60 cursor-pointer hover:bg-purple-100/60 transition">
+              <input type="radio" name="formUserType" id="formUserTypeTeacher" value="teacher" onchange="handleUserTypeChange('teacher')" class="text-purple-600 focus:ring-purple-500" />
+              <span class="text-xs font-bold text-purple-900 flex items-center gap-1">👨‍🏫 Giáo viên / Cán bộ</span>
+            </label>
+          </div>
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Mã thẻ (Username) *</label>
@@ -3212,13 +3234,45 @@ let pendingFirstLoginUser = null;
         }
       );
     }
+    // Nhận diện đối tượng Giáo viên vs Học sinh
+    function getUserType(u) {
+      if (u.userType === 'teacher' || u.userType === 'student') return u.userType;
+      const code = String(u.cardCode || '').toUpperCase();
+      const grp = String(u.group || '').toLowerCase();
+      const name = String(u.fullName || '').toLowerCase();
+      if (code.startsWith('GV') || name.startsWith('thầy') || name.startsWith('cô') || grp.includes('tổ') || grp.includes('bộ môn') || /^(tin|toán|văn|anh|lý|hóa|sinh|sử|địa|gdcd|thể dục|công nghệ|giáo viên)/i.test(grp)) {
+        return 'teacher';
+      }
+      return 'student';
+    }
+
+    function handleUserTypeChange(type) {
+      const codeInput = document.getElementById('formUserCode');
+      const groupLabel = document.getElementById('formUserGroupLabel');
+      const groupInput = document.getElementById('formUserGroup');
+      if (type === 'teacher') {
+        if (groupLabel) groupLabel.textContent = 'Tổ chuyên môn / Bộ môn *';
+        if (groupInput) groupInput.placeholder = 'VD: Tin học, Toán, Ngữ văn...';
+        if (codeInput && !codeInput.value) codeInput.placeholder = 'VD: GV-TIN01';
+      } else {
+        if (groupLabel) groupLabel.textContent = 'Lớp học *';
+        if (groupInput) groupInput.placeholder = 'VD: 12A1';
+        if (codeInput && !codeInput.value) codeInput.placeholder = 'VD: HS12A1-05';
+      }
+    }
     function renderAdminUsers() {
       const q = (document.getElementById('adminUserSearch')?.value || '').toLowerCase().trim();
+      const userTypeFilter = document.getElementById('adminUserTypeFilter')?.value || 'ALL';
       const currentYear = db.currentSchoolYear || '2026-2027';
 
       const filtered = db.users.filter(u => {
         const matchYear = currentYear === 'ALL' || (u.schoolYear || '2026-2027') === currentYear;
         if (!matchYear) return false;
+
+        const isTeacher = getUserType(u) === 'teacher';
+        if (userTypeFilter === 'student' && isTeacher) return false;
+        if (userTypeFilter === 'teacher' && !isTeacher) return false;
+
         if (!q) return true;
         return String(u.fullName || '').toLowerCase().includes(q) || 
                String(u.cardCode || '').toLowerCase().includes(q) || 
@@ -3228,6 +3282,9 @@ let pendingFirstLoginUser = null;
       });
 
       const totalItems = filtered.length;
+      const totalStudents = filtered.filter(u => getUserType(u) === 'student').length;
+      const totalTeachers = filtered.filter(u => getUserType(u) === 'teacher').length;
+
       const totalPages = Math.max(1, Math.ceil(totalItems / USERS_PER_PAGE));
       if (adminUserPage > totalPages) adminUserPage = totalPages;
       if (adminUserPage < 1) adminUserPage = 1;
@@ -3235,55 +3292,70 @@ let pendingFirstLoginUser = null;
       const startIdx = (adminUserPage - 1) * USERS_PER_PAGE;
       const pageItems = filtered.slice(startIdx, startIdx + USERS_PER_PAGE);
 
-      document.getElementById('adminUserPaginationInfo').textContent = totalItems > 0
-        ? `Hiển thị ${startIdx + 1} - ${Math.min(startIdx + USERS_PER_PAGE, totalItems)} trên tổng ${totalItems} độc giả`
-        : `Không có độc giả nào khớp bộ lọc`;
+      const infoEl = document.getElementById('adminUserPaginationInfo');
+      if (infoEl) {
+        infoEl.innerHTML = totalItems > 0
+          ? `Hiển thị <strong>${startIdx + 1} - ${Math.min(startIdx + USERS_PER_PAGE, totalItems)}</strong> trên tổng <strong>${totalItems}</strong> bạn đọc (<strong>${totalStudents}</strong> Học sinh • <strong>${totalTeachers}</strong> Giáo viên)`
+          : `Không có bạn đọc nào khớp bộ lọc`;
+      }
       document.getElementById('adminUserPageIndicator').textContent = `Trang ${adminUserPage}/${totalPages}`;
       document.getElementById('btnPrevUserPage').disabled = adminUserPage <= 1;
       document.getElementById('btnNextUserPage').disabled = adminUserPage >= totalPages;
 
-      document.getElementById('adminUserTableBody').innerHTML = pageItems.map(u => `
-        <tr class="hover:bg-slate-50">
-          <td class="py-3.5 px-4 font-mono font-bold text-xs text-indigo-700">${u.cardCode}</td>
-          <td class="py-3.5 px-4 font-semibold text-slate-800">${u.fullName}</td>
-          <td class="py-3.5 px-4 text-xs text-slate-600">
-            <span class="font-semibold text-slate-800">${u.group}</span>
-            <span class="block text-[10px] text-slate-400">${u.schoolYear || '2026-2027'}</span>
-          </td>
-          <td class="py-3.5 px-4 text-xs text-slate-600">
-            <div class="flex items-center gap-1.5 text-blue-600 font-medium">
-              <i class="ph ph-envelope-simple text-sm"></i> ${u.email || '<span class="text-slate-400">Chưa có email</span>'}
-            </div>
-            <div class="flex items-center gap-1.5 text-slate-500 mt-0.5">
-              <i class="ph ph-phone text-sm"></i> ${u.phone || '<span class="text-slate-400">---</span>'}
-            </div>
-          </td>
-          <td class="py-3.5 px-4">
-            <div class="flex items-center justify-between gap-2">
-              <div>
-                <span class="font-mono text-[11px] font-semibold text-slate-600 flex items-center gap-1" title="Mã băm: ${String(u.password || '').slice(0, 22)}...">
-                  <i class="ph-fill ph-shield-check text-emerald-600"></i> ${isDefaultReaderPassword(u.password) ? 'SHA-256 (123456)' : 'SHA-256 (Đã ẩn)'}
-                </span>
-                ${isDefaultReaderPassword(u.password)
-                  ? `<span class="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-500 uppercase">MK Mặc định</span>`
-                  : `<span class="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-600 uppercase border border-emerald-200"><i class="ph-fill ph-lock-key"></i> Đã đổi MK riêng</span>`
-                }
+      document.getElementById('adminUserTableBody').innerHTML = pageItems.map(u => {
+        const isTeacher = getUserType(u) === 'teacher';
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3.5 px-4 font-mono font-bold text-xs ${isTeacher ? 'text-purple-700' : 'text-blue-700'}">${u.cardCode}</td>
+            <td class="py-3.5 px-4">
+              <p class="font-bold text-slate-900">${u.fullName}</p>
+              <span class="text-[11px] text-slate-400 font-mono">${isTeacher ? 'Tài khoản Giáo viên' : 'Tài khoản Học sinh'}</span>
+            </td>
+            <td class="py-3.5 px-4 text-xs">
+              ${isTeacher
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">👨‍🏫 Giáo viên</span>`
+                : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">🎓 Học sinh</span>`
+              }
+              <span class="font-bold text-slate-800 block text-xs mt-1">
+                ${isTeacher ? `Tổ ${u.group}` : `Lớp ${(currentYear !== 'ALL' && u.classesHistory && u.classesHistory[currentYear]) || u.group}`}
+              </span>
+              <span class="text-[10px] text-slate-400 block">${currentYear !== 'ALL' ? currentYear : (u.schoolYear || '2026-2027')}</span>
+            </td>
+            <td class="py-3.5 px-4 text-xs text-slate-600">
+              <div class="flex items-center gap-1.5 text-blue-600 font-medium">
+                <i class="ph ph-envelope-simple text-sm"></i> ${u.email || '<span class="text-slate-400">Chưa có email</span>'}
               </div>
-              <button onclick="adminQuickChangePassword(${u.id})" class="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-blue-50 text-slate-600 hover:text-blue-700 text-[10px] font-bold transition shadow-sm" title="Cấp lại mật khẩu">Cấp lại</button>
-            </div>
-          </td>
-          <td class="py-3.5 px-4">
-            <span class="px-2 py-0.5 text-xs rounded-full font-semibold ${u.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}">
-              ${u.status === 'active' ? 'Hoạt động' : 'Đã khóa'}
-            </span>
-          </td>
-          <td class="py-3.5 px-4 text-right space-x-1.5">
-            <button onclick="openUserModal(${u.id})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold hover:bg-blue-100">Sửa/MK</button>
-            <button onclick="toggleUserLock(${u.id})" class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100">${u.status === 'active' ? 'Khóa' : 'Mở'}</button>
-            <button onclick="deleteUser(${u.id})" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-semibold hover:bg-rose-100">Xóa</button>
-          </td>
-        </tr>
-      `).join('');
+              <div class="flex items-center gap-1.5 text-slate-500 mt-0.5">
+                <i class="ph ph-phone text-sm"></i> ${u.phone || '<span class="text-slate-400">---</span>'}
+              </div>
+            </td>
+            <td class="py-3.5 px-4">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <span class="font-mono text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                    <i class="ph-fill ph-shield-check text-emerald-600"></i> ${isDefaultReaderPassword(u.password) ? 'SHA-256 (123456)' : 'SHA-256 (Đã ẩn)'}
+                  </span>
+                  ${isDefaultReaderPassword(u.password)
+                    ? `<span class="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-500 uppercase">MK Mặc định</span>`
+                    : `<span class="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-600 uppercase border border-emerald-200"><i class="ph-fill ph-lock-key"></i> Đã đổi riêng</span>`
+                  }
+                </div>
+                <button onclick="adminQuickChangePassword(${u.id})" class="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-blue-50 text-slate-600 hover:text-blue-700 text-[10px] font-bold transition shadow-sm">Cấp lại</button>
+              </div>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2 py-0.5 text-xs rounded-full font-semibold ${u.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}">
+                ${u.status === 'active' ? 'Hoạt động' : 'Đã khóa'}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-right space-x-1.5">
+              <button onclick="openUserModal(${u.id})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold hover:bg-blue-100">Sửa/MK</button>
+              <button onclick="toggleUserLock(${u.id})" class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100">${u.status === 'active' ? 'Khóa' : 'Mở'}</button>
+              <button onclick="deleteUser(${u.id})" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-semibold hover:bg-rose-100">Xóa</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function changeAdminUserPage(delta) {
@@ -3446,9 +3518,17 @@ let pendingFirstLoginUser = null;
         document.getElementById('formUserPhone').value = '';
         document.getElementById('formUserPassword').value = '123456';
         document.getElementById('formUserSchoolYear').value = defaultYear;
+        const radStudent = document.getElementById('formUserTypeStudent');
+        if (radStudent) radStudent.checked = true;
+        handleUserTypeChange('student');
       } else {
         const u = db.users.find(x => x.id === id);
         if (!u) return;
+        const uType = getUserType(u);
+        const rad = document.getElementById(uType === 'teacher' ? 'formUserTypeTeacher' : 'formUserTypeStudent');
+        if (rad) rad.checked = true;
+        handleUserTypeChange(uType);
+
         document.getElementById('editUserId').value = u.id;
         document.getElementById('formUserCode').value = u.cardCode;
         document.getElementById('formUserGroup').value = u.group;
@@ -3467,9 +3547,14 @@ let pendingFirstLoginUser = null;
     async function saveUserForm(e) {
       e.preventDefault();
       const id = document.getElementById('editUserId').value;
+      const selectedType = document.querySelector('input[name="formUserType"]:checked')?.value || 'student';
+      const rawGroup = document.getElementById('formUserGroup').value.trim();
+      const cleanGroup = selectedType === 'student' ? rawGroup.replace(/^lớp\s+/i, '') : rawGroup.replace(/^tổ\s+/i, '');
+
       const payload = {
+        userType: selectedType,
         cardCode: document.getElementById('formUserCode').value.trim().toUpperCase(),
-        group: document.getElementById('formUserGroup').value.trim().replace(/^lớp\s+/i, ''),
+        group: cleanGroup,
         fullName: document.getElementById('formUserName').value.trim(),
         email: document.getElementById('formUserEmail').value.trim(),
         phone: document.getElementById('formUserPhone').value.trim() || '',
@@ -3493,7 +3578,7 @@ let pendingFirstLoginUser = null;
       }
       await saveDB('users');
       closeUserModal();
-      showToast('Đã lưu thông tin độc giả thành công!');
+      showToast('Đã lưu thông tin bạn đọc thành công!');
     }
 
     async function toggleUserLock(id) {
