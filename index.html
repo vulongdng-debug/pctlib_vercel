@@ -1092,13 +1092,13 @@
           </p>
         </div>
 
-        <!-- Địa chỉ Email nhận mã OTP (Có thể cập nhật và bấm Gửi lại ngay) -->
+        <!-- Hộp thư Email nhận mã OTP của Admin (Khóa cố định, không được sửa tại màn hình OTP) -->
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Hộp thư Email nhận mã OTP của Admin</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email nhận mã OTP của Admin (Cố định)</label>
           <div class="flex gap-2">
             <div class="relative flex-1">
-              <i class="ph ph-envelope-simple absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input type="email" id="admin2faTargetEmailInput" required placeholder="Nhập email nhận mã OTP..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white focus:outline-none focus:border-indigo-600" />
+              <i class="ph ph-lock-key absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="email" id="admin2faTargetEmailInput" readonly class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-100 cursor-not-allowed select-none focus:outline-none" />
             </div>
             <button type="button" id="btnResendAdminOtp" onclick="resendAdmin2FACode()" class="px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0 transition flex items-center gap-1">
               <i class="ph-bold ph-paper-plane-tilt"></i> Gửi lại mã
@@ -1125,17 +1125,7 @@
           />
         </div>
 
-        <!-- Hộp hiển thị mã OTP khi đang ở Chế độ Thử nghiệm (Tự động ẩn khi BẬT Chế độ Vận hành Thực tế) -->
-        <div id="admin2faDemoHintBox" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs flex items-center justify-between gap-2">
-          <div>
-            <span class="font-bold text-amber-900 block">Chế độ Thử nghiệm / Dự phòng:</span>
-            <span class="text-[11px] text-amber-800">Mã OTP hiện tại: <strong id="admin2faDemoCodeValue" class="font-mono text-sm text-indigo-700">------</strong></span>
-          </div>
-          <button type="button" onclick="fillDemoAdminOtp()" class="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] shrink-0 transition">
-            Điền nhanh OTP
-          </button>
-        </div>
-
+        <!-- Hộp hiển thị mã OTP khi đang ở Chế độ Thử nghiệm (Tự động ẩn khi BẬT Chế độ Vận hành Thực tế) -->        
         <div class="space-y-2 pt-1">
           <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-md transition flex items-center justify-center gap-2">
             <i class="ph-bold ph-check-circle text-base"></i> Xác nhận Mã OTP & Đăng nhập Admin
@@ -5071,14 +5061,9 @@ async function sendOverdueEmail(id) {
     }
 
     async function resendAdmin2FACode() {
-      const emailInput = document.getElementById('admin2faTargetEmailInput');
-      const newEmail = emailInput ? emailInput.value.trim() : '';
-      if (!newEmail || !newEmail.includes('@')) {
-        showNoticeModal('Email không hợp lệ', 'Vui lòng nhập địa chỉ Email hợp lệ để nhận mã xác thực OTP!');
-        return;
-      }
-      await initiateAdmin2FAStep(newEmail);
-      showToast(`Đã tạo và gửi mã OTP mới tới ${newEmail}!`);
+      const targetEmail = sanitizeText((db.adminAccount.email || 'longnv@pct.edu.vn').trim());
+      await initiateAdmin2FAStep();
+      showToast(`Đã tạo và gửi lại mã OTP mới tới ${targetEmail}!`);
     }
 
     function fillDemoAdminOtp() {
