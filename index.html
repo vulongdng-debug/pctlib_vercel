@@ -5027,7 +5027,8 @@ async function sendOverdueEmail(id) {
 
       // Chuyển giao diện sang Bước 2 trong #authModal
       document.getElementById('loginForm').classList.add('hidden');
-      document.getElementById('registerForm').classList.add('hidden');
+      const regFormEl = document.getElementById('registerForm');
+      if (regFormEl) regFormEl.classList.add('hidden');
       const twoFaForm = document.getElementById('admin2faForm');
       twoFaForm.classList.remove('hidden');
 
@@ -5062,7 +5063,7 @@ async function sendOverdueEmail(id) {
     }
 
     async function resendAdmin2FACode() {
-      const targetEmail = sanitizeText((db.adminAccount.email || 'longnv@pct.edu.vn').trim());
+      const targetEmail = sanitizeText((db.adminAccount.email || 'vulongdng@gmail.com').trim());
       await initiateAdmin2FAStep();
       showToast(`Đã tạo và gửi lại mã OTP mới tới ${targetEmail}!`);
     }
