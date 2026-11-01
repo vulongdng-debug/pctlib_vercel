@@ -1043,9 +1043,10 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL 1: LOGIN & REGISTER ==================== -->
+  <!-- ==================== MODAL 1: LOGIN ==================== -->
   <div id="authModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <!-- Tiêu đề cửa sổ -->
       <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white flex items-center justify-between">
         <div>
           <h3 class="text-lg font-bold flex items-center gap-2">
@@ -1056,6 +1057,7 @@
         <button onclick="closeAuthModal()" class="text-white/80 hover:text-white"><i class="ph-bold ph-x text-xl"></i></button>
       </div>
 
+      <!-- Biểu mẫu Đăng nhập -->
       <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="p-6 space-y-4">
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Mã thẻ thư viện / Email / Tài khoản Thủ thư</label>
@@ -1076,7 +1078,7 @@
         </button>
       </form>
 
-     <!-- BƯỚC 2: XÁC THỰC BẢO MẬT 2 LỚP BẰNG EMAIL (2FA OTP CHO ADMIN) -->
+      <!-- BƯỚC 2: XÁC THỰC BẢO MẬT 2 LỚP BẰNG EMAIL (2FA OTP CHO ADMIN) -->
       <form id="admin2faForm" onsubmit="handleAdmin2FASubmit(event)" class="hidden p-6 space-y-4 bg-slate-50/60">
         <div class="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 space-y-1.5">
           <div class="flex items-center justify-between">
@@ -1092,7 +1094,7 @@
           </p>
         </div>
 
-        <!-- Hộp thư Email nhận mã OTP của Admin (Khóa cố định, không được sửa tại màn hình OTP) -->
+        <!-- Hộp thư Email nhận mã OTP của Admin (Khóa cố định) -->
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Email nhận mã OTP của Admin (Cố định)</label>
           <div class="flex gap-2">
@@ -1125,7 +1127,6 @@
           />
         </div>
 
-        <!-- Hộp hiển thị mã OTP khi đang ở Chế độ Thử nghiệm (Tự động ẩn khi BẬT Chế độ Vận hành Thực tế) -->        
         <div class="space-y-2 pt-1">
           <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-md transition flex items-center justify-center gap-2">
             <i class="ph-bold ph-check-circle text-base"></i> Xác nhận Mã OTP & Đăng nhập Admin
