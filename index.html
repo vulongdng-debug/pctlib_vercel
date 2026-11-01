@@ -515,6 +515,29 @@
             <tbody id="adminBookTableBody" class="divide-y divide-slate-200"></tbody>
           </table>
         </div>
+        <!-- Phân trang Sách: 100, 200, 500 bản ghi/trang -->
+        <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+          <div class="flex items-center gap-3">
+            <span id="adminBookPaginationInfo">Hiển thị 0 - 0 trên tổng 0 sách</span>
+            <div class="flex items-center gap-1.5">
+              <span>Hiển thị:</span>
+              <select id="adminBookPageSize" onchange="changeAdminBookPageSize(this.value)" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700 cursor-pointer focus:outline-none focus:border-blue-500">
+                <option value="100" selected>100 / trang</option>
+                <option value="200">200 / trang</option>
+                <option value="500">500 / trang</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="changeAdminBookPage(-1)" id="btnPrevBookPage" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 font-semibold disabled:opacity-40">
+              ← Trang trước
+            </button>
+            <span id="adminBookPageIndicator" class="px-2.5 font-bold text-slate-800">Trang 1/1</span>
+            <button onclick="changeAdminBookPage(1)" id="btnNextBookPage" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 font-semibold disabled:opacity-40">
+              Trang sau →
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Tab 2: Users (WITH PAGINATION FOR 4,000+ USERS) -->
@@ -561,6 +584,9 @@
             <button onclick="openExportUsersModal('selected')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shadow-xs transition">
               <i class="ph-bold ph-download-simple"></i> Xuất Excel danh sách đã chọn
             </button>
+            <button onclick="deleteSelectedAdminUsers()" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold flex items-center gap-1.5 shadow-xs transition" title="Xóa tất cả các độc giả đang được tích chọn">
+              <i class="ph-bold ph-trash"></i> Xóa độc giả đã chọn
+            </button>
             <button onclick="clearAdminUserSelection()" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold transition">
               Bỏ chọn tất cả
             </button>
@@ -586,9 +612,19 @@
             <tbody id="adminUserTableBody" class="divide-y divide-slate-200"></tbody>
           </table>
         </div>
-        <!-- Pagination Footer for 4,000 Users -->
+        <!-- Phân trang Độc giả: 100, 200, 500 bản ghi/trang -->
         <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
-          <span id="adminUserPaginationInfo">Hiển thị 0 - 0 trên tổng 0 độc giả</span>
+          <div class="flex items-center gap-3">
+            <span id="adminUserPaginationInfo">Hiển thị 0 - 0 trên tổng 0 độc giả</span>
+            <div class="flex items-center gap-1.5">
+              <span>Hiển thị:</span>
+              <select id="adminUserPageSize" onchange="changeAdminUserPageSize(this.value)" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-semibold text-slate-700 cursor-pointer focus:outline-none focus:border-blue-500">
+                <option value="100" selected>100 / trang</option>
+                <option value="200">200 / trang</option>
+                <option value="500">500 / trang</option>
+              </select>
+            </div>
+          </div>
           <div class="flex items-center gap-1.5">
             <button onclick="changeAdminUserPage(-1)" id="btnPrevUserPage" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 font-semibold disabled:opacity-40">
               ← Trang trước
@@ -1822,8 +1858,10 @@
 
     let adminUserPage = 1;
     let selectedAdminUserIds = new Set();
-    const USERS_PER_PAGE = 50;
+    let usersPerPage = 100;
 
+    let adminBookPage = 1;
+    let booksPerPage = 100;
     const INITIAL_DB = {
       currentSchoolYear: '2026-2027',
       finePerDay: 5000,
@@ -3201,8 +3239,30 @@ let pendingFirstLoginUser = null;
 
     function renderAdminBooks() {
       const q = (document.getElementById('adminBookSearch')?.value || '').toLowerCase();
-      const list = db.books.filter(b => b.title.toLowerCase().includes(q) || b.code.toLowerCase().includes(q) || b.author.toLowerCase().includes(q));
-      document.getElementById('adminBookTableBody').innerHTML = list.map(b => `
+      const filtered = db.books.filter(b => b.title.toLowerCase().includes(q) || b.code.toLowerCase().includes(q) || b.author.toLowerCase().includes(q));
+
+      const totalItems = filtered.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / booksPerPage));
+      if (adminBookPage > totalPages) adminBookPage = totalPages;
+      if (adminBookPage < 1) adminBookPage = 1;
+
+      const startIdx = (adminBookPage - 1) * booksPerPage;
+      const pageItems = filtered.slice(startIdx, startIdx + booksPerPage);
+
+      const infoEl = document.getElementById('adminBookPaginationInfo');
+      if (infoEl) {
+        infoEl.innerHTML = totalItems > 0
+          ? `Hiển thị <strong>${startIdx + 1} - ${Math.min(startIdx + booksPerPage, totalItems)}</strong> trên tổng <strong>${totalItems}</strong> đầu sách`
+          : `Không có sách nào khớp bộ lọc`;
+      }
+      const pageIndicator = document.getElementById('adminBookPageIndicator');
+      if (pageIndicator) pageIndicator.textContent = `Trang ${adminBookPage}/${totalPages}`;
+      const prevBtn = document.getElementById('btnPrevBookPage');
+      if (prevBtn) prevBtn.disabled = adminBookPage <= 1;
+      const nextBtn = document.getElementById('btnNextBookPage');
+      if (nextBtn) nextBtn.disabled = adminBookPage >= totalPages;
+
+      document.getElementById('adminBookTableBody').innerHTML = pageItems.map(b => `
         <tr class="hover:bg-slate-50">
           <td class="py-3.5 px-4 font-mono font-bold text-xs text-blue-700">${b.code}</td>
           <td class="py-3.5 px-4">
@@ -3218,6 +3278,23 @@ let pendingFirstLoginUser = null;
           </td>
         </tr>
       `).join('');
+    }
+
+    function changeAdminBookPage(delta) {
+      adminBookPage += delta;
+      renderAdminBooks();
+    }
+
+    function changeAdminBookPageSize(size) {
+      booksPerPage = parseInt(size, 10) || 100;
+      adminBookPage = 1;
+      renderAdminBooks();
+    }
+
+    function changeAdminUserPageSize(size) {
+      usersPerPage = parseInt(size, 10) || 100;
+      adminUserPage = 1;
+      renderAdminUsers();
     }
 
     // HIỂN THỊ BẢNG ĐỘC GIẢ CÓ PHÂN TRANG (MƯỢT MÀ VỚI 4.000+ HỌC SINH)
@@ -3367,17 +3444,17 @@ let pendingFirstLoginUser = null;
       const totalStudents = filtered.filter(u => getUserType(u) === 'student').length;
       const totalTeachers = filtered.filter(u => getUserType(u) === 'teacher').length;
 
-      const totalPages = Math.max(1, Math.ceil(totalItems / USERS_PER_PAGE));
+      const totalPages = Math.max(1, Math.ceil(totalItems / usersPerPage));
       if (adminUserPage > totalPages) adminUserPage = totalPages;
       if (adminUserPage < 1) adminUserPage = 1;
 
-      const startIdx = (adminUserPage - 1) * USERS_PER_PAGE;
-      const pageItems = filtered.slice(startIdx, startIdx + USERS_PER_PAGE);
+      const startIdx = (adminUserPage - 1) * usersPerPage;
+      const pageItems = filtered.slice(startIdx, startIdx + usersPerPage);
 
       const infoEl = document.getElementById('adminUserPaginationInfo');
       if (infoEl) {
         infoEl.innerHTML = totalItems > 0
-          ? `Hiển thị <strong>${startIdx + 1} - ${Math.min(startIdx + USERS_PER_PAGE, totalItems)}</strong> trên tổng <strong>${totalItems}</strong> bạn đọc (<strong>${totalStudents}</strong> Học sinh • <strong>${totalTeachers}</strong> Giáo viên)`
+          ? `Hiển thị <strong>${startIdx + 1} - ${Math.min(startIdx + usersPerPage, totalItems)}</strong> trên tổng <strong>${totalItems}</strong> bạn đọc (<strong>${totalStudents}</strong> Học sinh • <strong>${totalTeachers}</strong> Giáo viên)`
           : `Không có bạn đọc nào khớp bộ lọc`;
       }
       document.getElementById('adminUserPageIndicator').textContent = `Trang ${adminUserPage}/${totalPages}`;
@@ -3947,8 +4024,8 @@ async function sendOverdueEmail(id) {
                (u.email && String(u.email).toLowerCase().includes(q));
       });
 
-      const startIdx = (adminUserPage - 1) * USERS_PER_PAGE;
-      const pageItems = filtered.slice(startIdx, startIdx + USERS_PER_PAGE);
+      const startIdx = (adminUserPage - 1) * usersPerPage;
+      const pageItems = filtered.slice(startIdx, startIdx + usersPerPage);
 
       if (chk.checked) {
         pageItems.forEach(u => selectedAdminUserIds.add(Number(u.id)));
@@ -3964,7 +4041,25 @@ async function sendOverdueEmail(id) {
       renderAdminUsers();
       updateAdminUserSelectionUI();
     }
-
+    function deleteSelectedAdminUsers() {
+      const count = selectedAdminUserIds.size;
+      if (count === 0) {
+        showNoticeModal('Chưa chọn độc giả', 'Vui lòng tích chọn ít nhất 1 độc giả cần xóa!');
+        return;
+      }
+      openCustomConfirmDialog(
+        'Xác nhận xóa hàng loạt',
+        `Bạn có chắc chắn muốn xóa vĩnh viễn ${count} độc giả đã chọn khỏi hệ thống thư viện? Thao tác này không thể hoàn tác!`,
+        async () => {
+          db.users = db.users.filter(u => !selectedAdminUserIds.has(Number(u.id)));
+          selectedAdminUserIds.clear();
+          await saveDB('users');
+          updateAdminUserSelectionUI();
+          showToast(`Đã xóa thành công ${count} độc giả khỏi hệ thống!`);
+        }
+      );
+    }
+    
     function updateAdminUserSelectionUI() {
       const count = selectedAdminUserIds.size;
       const bar = document.getElementById('adminUserSelectionBar');
