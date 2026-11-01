@@ -540,6 +540,9 @@
               <i class="ph-bold ph-upload-simple"></i> Nhập Độc giả từ Excel/CSV
               <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleImportUsersExcel(event)" />
             </label>
+            <button onclick="openExportUsersModal()" class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm" title="Xuất danh sách độc giả theo Lớp, Tổ hoặc Riêng lẻ ra Excel">
+              <i class="ph-bold ph-download-simple text-base"></i> Xuất Danh Sách (.xlsx)
+            </button>
             <button onclick="openPromoteStudentsModal()" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm" title="Tự động nâng khối lớp cho toàn trường khi sang năm học mới">
               <i class="ph-bold ph-graduation-cap text-base"></i> Chuyển Lớp Năm Học
             </button>
@@ -548,10 +551,29 @@
             </button>
           </div>
         </div>
+        <!-- Thanh thông báo thao tác hàng loạt khi có độc giả được chọn riêng lẻ -->
+        <div id="adminUserSelectionBar" class="hidden px-5 py-2.5 bg-blue-50 border-b border-blue-200 flex flex-wrap items-center justify-between gap-3 text-xs text-blue-900">
+          <div class="flex items-center gap-2">
+            <i class="ph-bold ph-check-square text-base text-blue-600"></i>
+            <span>Đang chọn riêng lẻ: <strong id="adminUserSelectedCount" class="font-bold text-blue-700 text-sm">0</strong> độc giả</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openExportUsersModal('selected')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shadow-xs transition">
+              <i class="ph-bold ph-download-simple"></i> Xuất Excel danh sách đã chọn
+            </button>
+            <button onclick="clearAdminUserSelection()" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold transition">
+              Bỏ chọn tất cả
+            </button>
+          </div>
+        </div>
+
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm">
             <thead>
               <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 text-xs uppercase">
+                <th class="py-3.5 px-3 text-center w-12">
+                  <input type="checkbox" id="selectAllAdminUsers" onchange="toggleSelectAllAdminUsers(this)" class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer" title="Chọn / Bỏ chọn tất cả trên trang này" />
+                </th>
                 <th class="py-3.5 px-4">Mã Thẻ (Username)</th>
                 <th class="py-3.5 px-4">Họ và Tên</th>
                 <th class="py-3.5 px-4">Lớp / Tổ (Năm học)</th>
@@ -1530,6 +1552,120 @@
       </form>
     </div>
   </div>
+  <!-- ==================== MODAL XUẤT DANH SÁCH ĐỘC GIẢ (EXCEL) ==================== -->
+  <div id="exportUsersModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
+      <div class="bg-gradient-to-r from-teal-800 via-emerald-800 to-teal-900 p-5 text-white flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-bold flex items-center gap-2">
+            <i class="ph-bold ph-file-xls text-amber-300 text-xl"></i> Xuất Danh Sách Độc Giả Ra Excel
+          </h3>
+          <p class="text-xs text-emerald-100 mt-0.5">Tùy chọn xuất theo Lớp học, Tổ bộ môn hoặc độc giả chọn riêng lẻ</p>
+        </div>
+        <button type="button" onclick="closeExportUsersModal()" class="text-white/80 hover:text-white"><i class="ph-bold ph-x text-xl"></i></button>
+      </div>
+
+      <form onsubmit="handleExportUsersSubmit(event)" class="p-6 space-y-4 text-sm">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">1. Chọn phạm vi xuất danh sách *</label>
+          <div class="space-y-2">
+            <!-- Tùy chọn 1: Theo Lớp -->
+            <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-400 hover:bg-teal-50/30 cursor-pointer transition">
+              <input type="radio" name="exportScope" value="class" onchange="updateExportScopeUI()" checked class="mt-0.5 text-teal-600 focus:ring-teal-500" />
+              <div class="flex-1">
+                <span class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <i class="ph-bold ph-graduation-cap text-blue-600 text-sm"></i> Xuất theo Lớp học (Học sinh)
+                </span>
+                <span class="block text-[11px] text-slate-500 mt-0.5">Xuất danh sách học sinh theo từng lớp hoặc tất cả các lớp</span>
+              </div>
+            </label>
+
+            <!-- Tùy chọn 2: Theo Tổ bộ môn -->
+            <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-400 hover:bg-teal-50/30 cursor-pointer transition">
+              <input type="radio" name="exportScope" value="department" onchange="updateExportScopeUI()" class="mt-0.5 text-teal-600 focus:ring-teal-500" />
+              <div class="flex-1">
+                <span class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <i class="ph-bold ph-chalkboard-teacher text-purple-600 text-sm"></i> Xuất theo Tổ chuyên môn (Giáo viên / Cán bộ)
+                </span>
+                <span class="block text-[11px] text-slate-500 mt-0.5">Xuất danh sách giáo viên theo tổ (Toán, Tin học, Ngữ văn...)</span>
+              </div>
+            </label>
+
+            <!-- Tùy chọn 3: Riêng lẻ theo tích chọn -->
+            <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-400 hover:bg-teal-50/30 cursor-pointer transition">
+              <input type="radio" name="exportScope" value="selected" onchange="updateExportScopeUI()" class="mt-0.5 text-teal-600 focus:ring-teal-500" />
+              <div class="flex-1">
+                <span class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <i class="ph-bold ph-check-square-offset text-emerald-600 text-sm"></i> Xuất các độc giả đã chọn riêng lẻ
+                  <span id="exportSelectedBadge" class="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">0 bạn đọc</span>
+                </span>
+                <span class="block text-[11px] text-slate-500 mt-0.5">Chỉ xuất những bạn đọc đã tích chọn ở ô vuông trên bảng quản lý</span>
+              </div>
+            </label>
+
+            <!-- Tùy chọn 4: Toàn bộ / Đang lọc -->
+            <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-400 hover:bg-teal-50/30 cursor-pointer transition">
+              <input type="radio" name="exportScope" value="all" onchange="updateExportScopeUI()" class="mt-0.5 text-teal-600 focus:ring-teal-500" />
+              <div class="flex-1">
+                <span class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <i class="ph-bold ph-users text-indigo-600 text-sm"></i> Toàn bộ độc giả trong hệ thống
+                </span>
+                <span class="block text-[11px] text-slate-500 mt-0.5">Xuất toàn bộ danh sách bạn đọc (cả học sinh và giáo viên)</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Khung chọn Lớp cụ thể (Hiện khi chọn scope = class) -->
+        <div id="exportClassSelectContainer" class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700">Chọn Lớp học cần xuất:</label>
+          <select id="exportSelectClass" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer">
+          </select>
+        </div>
+
+        <!-- Khung chọn Tổ bộ môn cụ thể (Hiện khi chọn scope = department) -->
+        <div id="exportDeptSelectContainer" class="hidden p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700">Chọn Tổ chuyên môn cần xuất:</label>
+          <select id="exportSelectDept" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer">
+          </select>
+        </div>
+
+        <!-- Cảnh báo khi chọn riêng lẻ nhưng chưa tích ai -->
+        <div id="exportSelectedEmptyWarning" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+          <i class="ph-bold ph-warning text-base text-amber-600 shrink-0 mt-0.5"></i>
+          <span>Bạn chưa tích chọn bạn đọc nào trên bảng! Hãy đóng cửa sổ này, tích chọn vào các ô vuông ở đầu dòng của bạn đọc cần xuất rồi bấm xuất lại.</span>
+        </div>
+
+        <!-- Bộ lọc phụ: Năm học & Trạng thái -->
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Năm học</label>
+            <select id="exportSelectYear" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer">
+              <option value="CURRENT">Năm học hiện tại</option>
+              <option value="ALL">Tất cả các năm học</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Trạng thái thẻ</label>
+            <select id="exportSelectStatus" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer">
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="active">Chỉ thẻ đang hoạt động</option>
+              <option value="locked">Chỉ thẻ đang bị khóa</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
+          <button type="button" onclick="closeExportUsersModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold">
+            Đóng
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+            <i class="ph-bold ph-download-simple text-base"></i> Tải Về File Excel (.xlsx)
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
   <!-- ==================== MODAL 9: SECURITY CENTER & ADMIN PASSWORD (CẤP ĐỘ 1) ==================== -->
   <div id="securityCenterModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
@@ -1685,6 +1821,7 @@
     let activeSuggestionsList = [];
 
     let adminUserPage = 1;
+    let selectedAdminUserIds = new Set();
     const USERS_PER_PAGE = 50;
 
     const INITIAL_DB = {
@@ -3247,10 +3384,21 @@ let pendingFirstLoginUser = null;
       document.getElementById('btnPrevUserPage').disabled = adminUserPage <= 1;
       document.getElementById('btnNextUserPage').disabled = adminUserPage >= totalPages;
 
+      const allPageChecked = pageItems.length > 0 && pageItems.every(u => selectedAdminUserIds.has(Number(u.id)));
+      const selectAllEl = document.getElementById('selectAllAdminUsers');
+      if (selectAllEl) {
+        selectAllEl.checked = allPageChecked;
+        selectAllEl.indeterminate = !allPageChecked && pageItems.some(u => selectedAdminUserIds.has(Number(u.id)));
+      }
+
       document.getElementById('adminUserTableBody').innerHTML = pageItems.map(u => {
         const isTeacher = getUserType(u) === 'teacher';
+        const isChecked = selectedAdminUserIds.has(Number(u.id));
         return `
-          <tr class="hover:bg-slate-50">
+          <tr class="hover:bg-slate-50 ${isChecked ? 'bg-blue-50/40' : ''}">
+            <td class="py-3.5 px-3 text-center">
+              <input type="checkbox" class="admin-user-chk w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer" value="${u.id}" onchange="toggleAdminUserSelect(${u.id}, this.checked)" ${isChecked ? 'checked' : ''} />
+            </td>
             <td class="py-3.5 px-4 font-mono font-bold text-xs ${isTeacher ? 'text-purple-700' : 'text-blue-700'}">${u.cardCode}</td>
             <td class="py-3.5 px-4">
               <p class="font-bold text-slate-900">${u.fullName}</p>
@@ -3768,7 +3916,236 @@ async function sendOverdueEmail(id) {
       };
       reader.readAsArrayBuffer(file);
     }
+    // ==================== QUẢN LÝ TÍCH CHỌN & XUẤT DANH SÁCH ĐỘC GIẢ EXCEL ====================
+    function toggleAdminUserSelect(userId, isChecked) {
+      const idNum = Number(userId);
+      if (isChecked) {
+        selectedAdminUserIds.add(idNum);
+      } else {
+        selectedAdminUserIds.delete(idNum);
+      }
+      renderAdminUsers();
+      updateAdminUserSelectionUI();
+    }
 
+    function toggleSelectAllAdminUsers(chk) {
+      const q = (document.getElementById('adminUserSearch')?.value || '').toLowerCase().trim();
+      const userTypeFilter = document.getElementById('adminUserTypeFilter')?.value || 'ALL';
+      const currentYear = db.currentSchoolYear || '2026-2027';
+
+      const filtered = db.users.filter(u => {
+        const matchYear = currentYear === 'ALL' || (u.schoolYear || '2026-2027') === currentYear;
+        if (!matchYear) return false;
+        const isTeacher = getUserType(u) === 'teacher';
+        if (userTypeFilter === 'student' && isTeacher) return false;
+        if (userTypeFilter === 'teacher' && !isTeacher) return false;
+        if (!q) return true;
+        return String(u.fullName || '').toLowerCase().includes(q) || 
+               String(u.cardCode || '').toLowerCase().includes(q) || 
+               String(u.group || '').toLowerCase().includes(q) ||
+               (u.phone && String(u.phone).includes(q)) ||
+               (u.email && String(u.email).toLowerCase().includes(q));
+      });
+
+      const startIdx = (adminUserPage - 1) * USERS_PER_PAGE;
+      const pageItems = filtered.slice(startIdx, startIdx + USERS_PER_PAGE);
+
+      if (chk.checked) {
+        pageItems.forEach(u => selectedAdminUserIds.add(Number(u.id)));
+      } else {
+        pageItems.forEach(u => selectedAdminUserIds.delete(Number(u.id)));
+      }
+      renderAdminUsers();
+      updateAdminUserSelectionUI();
+    }
+
+    function clearAdminUserSelection() {
+      selectedAdminUserIds.clear();
+      renderAdminUsers();
+      updateAdminUserSelectionUI();
+    }
+
+    function updateAdminUserSelectionUI() {
+      const count = selectedAdminUserIds.size;
+      const bar = document.getElementById('adminUserSelectionBar');
+      const countEl = document.getElementById('adminUserSelectedCount');
+      const badgeEl = document.getElementById('exportSelectedBadge');
+      if (bar) bar.classList.toggle('hidden', count === 0);
+      if (countEl) countEl.textContent = count;
+      if (badgeEl) badgeEl.textContent = `${count} bạn đọc`;
+      const emptyWarn = document.getElementById('exportSelectedEmptyWarning');
+      if (emptyWarn) {
+        const scope = document.querySelector('input[name="exportScope"]:checked')?.value;
+        emptyWarn.classList.toggle('hidden', !(scope === 'selected' && count === 0));
+      }
+    }
+
+    function openExportUsersModal(initialScope = null) {
+      const modal = document.getElementById('exportUsersModal');
+      if (!modal) return;
+
+      updateAdminUserSelectionUI();
+
+      if (initialScope) {
+        const radio = document.querySelector(`input[name="exportScope"][value="${initialScope}"]`);
+        if (radio) radio.checked = true;
+      }
+
+      // Quét danh sách các Lớp (Học sinh) & Tổ chuyên môn (Giáo viên)
+      const classMap = new Map();
+      const deptMap = new Map();
+
+      db.users.forEach(u => {
+        const isTeacher = getUserType(u) === 'teacher';
+        if (isTeacher) {
+          const dept = (u.group || 'Chưa phân tổ').trim();
+          deptMap.set(dept, (deptMap.get(dept) || 0) + 1);
+        } else {
+          const cls = (u.group || 'Chưa phân lớp').trim();
+          classMap.set(cls, (classMap.get(cls) || 0) + 1);
+        }
+      });
+
+      // Điền danh sách Lớp vào select
+      const classSelect = document.getElementById('exportSelectClass');
+      if (classSelect) {
+        const sortedClasses = Array.from(classMap.keys()).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        const totalStudents = Array.from(classMap.values()).reduce((a, b) => a + b, 0);
+        let html = `<option value="ALL">-- Tất cả các Lớp học (${totalStudents} học sinh) --</option>`;
+        sortedClasses.forEach(cls => {
+          html += `<option value="${cls}">Lớp ${cls} (${classMap.get(cls)} học sinh)</option>`;
+        });
+        classSelect.innerHTML = html;
+      }
+
+      // Điền danh sách Tổ vào select
+      const deptSelect = document.getElementById('exportSelectDept');
+      if (deptSelect) {
+        const sortedDepts = Array.from(deptMap.keys()).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        const totalTeachers = Array.from(deptMap.values()).reduce((a, b) => a + b, 0);
+        let html = `<option value="ALL">-- Tất cả các Tổ chuyên môn (${totalTeachers} cán bộ/GV) --</option>`;
+        sortedDepts.forEach(d => {
+          html += `<option value="${d}">Tổ ${d} (${deptMap.get(d)} giáo viên)</option>`;
+        });
+        deptSelect.innerHTML = html;
+      }
+
+      updateExportScopeUI();
+      modal.classList.remove('hidden');
+    }
+
+    function closeExportUsersModal() {
+      const modal = document.getElementById('exportUsersModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function updateExportScopeUI() {
+      const scope = document.querySelector('input[name="exportScope"]:checked')?.value || 'class';
+      const classBox = document.getElementById('exportClassSelectContainer');
+      const deptBox = document.getElementById('exportDeptSelectContainer');
+      const emptyWarn = document.getElementById('exportSelectedEmptyWarning');
+
+      if (classBox) classBox.classList.toggle('hidden', scope !== 'class');
+      if (deptBox) deptBox.classList.toggle('hidden', scope !== 'department');
+      if (emptyWarn) emptyWarn.classList.toggle('hidden', !(scope === 'selected' && selectedAdminUserIds.size === 0));
+    }
+
+    function handleExportUsersSubmit(e) {
+      e.preventDefault();
+      const scope = document.querySelector('input[name="exportScope"]:checked')?.value || 'class';
+      const selectedYearMode = document.getElementById('exportSelectYear')?.value || 'CURRENT';
+      const selectedStatus = document.getElementById('exportSelectStatus')?.value || 'ALL';
+      const currentYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
+
+      let targetUsers = [];
+      let exportCategoryName = '';
+
+      if (scope === 'class') {
+        const selectedClass = document.getElementById('exportSelectClass')?.value || 'ALL';
+        targetUsers = db.users.filter(u => getUserType(u) === 'student');
+        if (selectedClass !== 'ALL') {
+          targetUsers = targetUsers.filter(u => String(u.group || '').trim() === selectedClass);
+          exportCategoryName = `Lop_${selectedClass.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        } else {
+          exportCategoryName = 'HocSinh_TatCaLop';
+        }
+      } else if (scope === 'department') {
+        const selectedDept = document.getElementById('exportSelectDept')?.value || 'ALL';
+        targetUsers = db.users.filter(u => getUserType(u) === 'teacher');
+        if (selectedDept !== 'ALL') {
+          targetUsers = targetUsers.filter(u => String(u.group || '').trim() === selectedDept);
+          exportCategoryName = `To_${selectedDept.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        } else {
+          exportCategoryName = 'GiaoVien_TatCaTo';
+        }
+      } else if (scope === 'selected') {
+        if (selectedAdminUserIds.size === 0) {
+          showNoticeModal('Chưa chọn độc giả', 'Bạn chưa tích chọn bạn đọc nào trên bảng! Vui lòng tích chọn ít nhất 1 độc giả trước khi xuất.');
+          return;
+        }
+        targetUsers = db.users.filter(u => selectedAdminUserIds.has(Number(u.id)));
+        exportCategoryName = `ChonRiengLe_${targetUsers.length}_DocGia`;
+      } else {
+        targetUsers = [...db.users];
+        exportCategoryName = 'ToanBoDocGia';
+      }
+
+      // Áp dụng bộ lọc Năm học
+      if (selectedYearMode === 'CURRENT') {
+        targetUsers = targetUsers.filter(u => (u.schoolYear || '2026-2027') === currentYear);
+      }
+
+      // Áp dụng bộ lọc Trạng thái
+      if (selectedStatus !== 'ALL') {
+        targetUsers = targetUsers.filter(u => u.status === selectedStatus);
+      }
+
+      if (targetUsers.length === 0) {
+        showNoticeModal('Không có dữ liệu', 'Không tìm thấy độc giả nào phù hợp với tiêu chí lọc đã chọn!');
+        return;
+      }
+
+      // Chuẩn bị dữ liệu xuất Excel
+      const rows = targetUsers.map((u, index) => {
+        const isTeacher = getUserType(u) === 'teacher';
+        const groupLabel = isTeacher ? `Tổ ${u.group}` : `Lớp ${u.group}`;
+        return {
+          'STT': index + 1,
+          'Mã Thẻ (Username)': u.cardCode,
+          'Họ và Tên': u.fullName,
+          'Đối Tượng': isTeacher ? 'Giáo viên / Cán bộ' : 'Học sinh',
+          'Lớp / Tổ Đơn Vị': groupLabel,
+          'Năm Học': u.schoolYear || currentYear,
+          'Email': u.email || '',
+          'Số Điện Thoại': u.phone || '',
+          'Trạng Thái Thẻ': u.status === 'active' ? 'Đang hoạt động' : 'Đã khóa'
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 6 },  // STT
+        { wch: 16 }, // Mã thẻ
+        { wch: 25 }, // Họ tên
+        { wch: 22 }, // Đối tượng
+        { wch: 18 }, // Lớp/Tổ
+        { wch: 14 }, // Năm học
+        { wch: 28 }, // Email
+        { wch: 16 }, // SĐT
+        { wch: 16 }  // Trạng thái
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const safeSheetName = exportCategoryName.slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const fileName = `SmartLib_DanhSach_${exportCategoryName}_${dateStr}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      closeExportUsersModal();
+      showToast(`Đã xuất thành công ${targetUsers.length} độc giả ra tệp ${fileName}!`);
+    }
     function exportBooksExcel() {
       const rows = db.books.map(b => ({ MaSach: b.code, TenSach: b.title, TacGia: b.author, TheLoai: b.category, NXB: b.publisher, NamXB: b.publishYear, SoTrang: b.pages, KeSach: b.shelf, TongSoBan: b.total, HienCon: b.available }));
       const ws = XLSX.utils.json_to_sheet(rows);
@@ -5026,11 +5403,12 @@ async function sendOverdueEmail(id) {
       };
 
       // Chuyển giao diện sang Bước 2 trong #authModal
-      document.getElementById('loginForm').classList.add('hidden');
+      const loginFormEl = document.getElementById('loginForm');
+      if (loginFormEl) loginFormEl.classList.add('hidden');
       const regFormEl = document.getElementById('registerForm');
       if (regFormEl) regFormEl.classList.add('hidden');
       const twoFaForm = document.getElementById('admin2faForm');
-      twoFaForm.classList.remove('hidden');
+      if (twoFaForm) twoFaForm.classList.remove('hidden');
 
       document.getElementById('admin2faTargetEmailInput').value = targetEmail;
       document.getElementById('admin2faCodeInput').value = '';
