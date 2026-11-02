@@ -1975,8 +1975,11 @@
     }
 
     const PASSWORD_HASH_CACHE = new Map();
+    const EMPTY_PASSWORD_HASH = 'sha256$98456b18ee3e6838e1e290921920de32655c88e68615ac2ad138298f173a34be';
+
     function hashPassword(rawOrHashed) {
-      const s = String(rawOrHashed || '123456').trim();
+      let s = String(rawOrHashed ?? '').trim();
+      if (!s || s === 'null' || s === 'undefined' || s === '********') s = '123456';
       if (s.startsWith('sha256$')) return s;
       if (PASSWORD_HASH_CACHE.has(s)) return PASSWORD_HASH_CACHE.get(s);
       const hashed = 'sha256$' + sha256Hex(SECURITY_SALT + '::' + s);
@@ -1987,6 +1990,10 @@
     function verifyPassword(inputPlain, storedPassword) {
       const cleanInput = String(inputPlain || '').trim();
       const stored = String(storedPassword || '123456').trim();
+      // Nếu mật khẩu được lưu là rỗng/lỗi hoặc là hash của chuỗi rỗng: chấp nhận mật khẩu mặc định 123456
+      if (stored === '' || stored === '123456' || stored === '********' || stored === EMPTY_PASSWORD_HASH || stored === hashPassword('123456')) {
+        return cleanInput === '123456';
+      }
       if (stored.startsWith('sha256$')) {
         return hashPassword(cleanInput) === stored;
       }
@@ -1996,7 +2003,7 @@
     function isDefaultReaderPassword(storedPassword) {
       if (!storedPassword) return true;
       const s = String(storedPassword).trim();
-      return s === '123456' || s === hashPassword('123456');
+      return s === '' || s === '123456' || s === '********' || s === EMPTY_PASSWORD_HASH || s === hashPassword('123456');
     }
 
     // Xóa bỏ chuỗi null / undefined và lọc rác
@@ -2052,16 +2059,28 @@
       if (parsed.adminAccount.twoFactorEnabled === undefined) parsed.adminAccount.twoFactorEnabled = true;
       parsed.productionMode = true;
 
-      parsed.users = (parsed.users || []).map(u => ({
-        ...u,
-        cardCode: sanitizeText(u.cardCode),
-        fullName: sanitizeText(u.fullName),
-        group: sanitizeText(u.group),
-        email: sanitizeText(u.email || ''),
-        phone: sanitizeText(u.phone || ''),
-        password: hashPassword(u.password || '123456'),
-        schoolYear: sanitizeText(u.schoolYear || '2026-2027')
-      }));
+      const defaultHash = hashPassword('123456');
+      parsed.users = (parsed.users || []).map(u => {
+        let p = String(u.password || '').trim();
+        // Tự động sửa chữa: Nếu mật khẩu là rỗng, khoảng trắng, hoặc là hash chuỗi rỗng từ Excel -> Phục hồi về hash 123456
+        if (!p || p === EMPTY_PASSWORD_HASH || p === '123456' || p === '********' || p === 'null' || p === 'undefined') {
+          p = defaultHash;
+        } else if (!p.startsWith('sha256$')) {
+          p = hashPassword(p);
+        }
+        return {
+          ...u,
+          cardCode: cleanNullText(u.cardCode),
+          fullName: cleanNullText(u.fullName),
+          gender: cleanNullText(u.gender, 'Nam'),
+          birthDate: cleanNullText(u.birthDate),
+          group: cleanNullText(u.group),
+          email: cleanNullText(u.email),
+          phone: cleanNullText(u.phone),
+          password: p,
+          schoolYear: cleanNullText(u.schoolYear, '2026-2027')
+        };
+      });
 
       parsed.books = (parsed.books || []).map(b => ({
         ...b,
@@ -3475,7 +3494,6 @@ let pendingFirstLoginUser = null;
         if (userTypeFilter === 'teacher' && !isTeacher) return false;
 
         if (!q) return true;
-        if (!q) return true;
         const bDateStr = u.birthDate ? formatBirthDate(u.birthDate) : '';
         return String(u.fullName || '').toLowerCase().includes(q) || 
                String(u.cardCode || '').toLowerCase().includes(q) || 
@@ -4345,31 +4363,55 @@ async function sendOverdueEmail(id) {
         const existingCodes = new Set(db.users.map(u => String(u.cardCode).toUpperCase()));
         let count = 0;
 
+        let updated = 0;
         rows.forEach((r, idx) => {
-          const cardCode = String(r.MaThe || r.CardCode || '').trim().toUpperCase();
-          const fullName = String(r.HoTen || r.FullName || '').trim();
+          const cardCode = String(r.MaThe || r.CardCode || r['Mã thẻ'] || r['Mã Thẻ'] || r['Mã thẻ / Username'] || r['Mã học sinh'] || '').trim().toUpperCase();
+          const fullName = String(r.HoTen || r.FullName || r['Họ và tên'] || r['Họ và Tên'] || r['Họ tên'] || '').trim();
           if (!cardCode || !fullName) return;
-          if (!existingCodes.has(cardCode)) {
+
+          const rawPass = r.MatKhau ?? r['Mật khẩu'] ?? r['Mật Khẩu'] ?? r.Password ?? r['MK'] ?? r.mat_khau;
+          let cleanPass = String(rawPass ?? '').trim();
+          if (!cleanPass || cleanPass === 'null' || cleanPass === 'undefined' || cleanPass === '********' || cleanPass.startsWith('SHA-256') || cleanPass === 'Đã đổi riêng') {
+            cleanPass = '123456';
+          }
+
+          const existingIdx = db.users.findIndex(u => String(u.cardCode).toUpperCase() === cardCode);
+          if (existingIdx > -1) {
+            const u = db.users[existingIdx];
+            const shouldResetPass = cleanPass !== '123456' || isDefaultReaderPassword(u.password);
+            db.users[existingIdx] = {
+              ...u,
+              fullName,
+              gender: String(r.GioiTinh || r.Gender || r['Giới tính'] || u.gender || 'Nam').trim(),
+              birthDate: String(r.NgaySinh || r.BirthDate || r['Ngày sinh'] || u.birthDate || '').trim(),
+              group: String(r.LopDonVi || r.Group || r['Lớp'] || r['Lớp/Tổ'] || r['Lớp / Tổ'] || u.group || 'Khối 12').trim().replace(/^lớp\s+/i, ''),
+              email: String(r.Email || u.email || '').trim(),
+              phone: String(r.SoDienThoai || r.Phone || r['Số điện thoại'] || u.phone || '').trim(),
+              password: shouldResetPass ? hashPassword(cleanPass) : u.password,
+              schoolYear: String(r.NamHoc || r['Năm học'] || u.schoolYear || defaultYear).trim()
+            };
+            updated++;
+          } else {
             existingCodes.add(cardCode);
             db.users.push({
               id: Date.now() + idx,
               cardCode,
               fullName,
-              gender: String(r.GioiTinh || r.Gender || 'Nam').trim(),
-              birthDate: String(r.NgaySinh || r.BirthDate || r.NgayThangNamSinh || '').trim(),
-              group: String(r.LopDonVi || r.Group || 'Khối 12').trim().replace(/^lớp\s+/i, ''),
+              gender: String(r.GioiTinh || r.Gender || r['Giới tính'] || 'Nam').trim(),
+              birthDate: String(r.NgaySinh || r.BirthDate || r['Ngày sinh'] || '').trim(),
+              group: String(r.LopDonVi || r.Group || r['Lớp'] || r['Lớp/Tổ'] || r['Lớp / Tổ'] || 'Khối 12').trim().replace(/^lớp\s+/i, ''),
               email: String(r.Email || '').trim(),
-              phone: String(r.SoDienThoai || r.Phone || '').trim(),
-              password: String(r.MatKhau || r.Password || '123456').trim(),
+              phone: String(r.SoDienThoai || r.Phone || r['Số điện thoại'] || '').trim(),
+              password: hashPassword(cleanPass),
               status: 'active',
-              schoolYear: String(r.NamHoc || defaultYear).trim()
+              schoolYear: String(r.NamHoc || r['Năm học'] || defaultYear).trim()
             });
             count++;
           }
         });
         await saveDB('users');
         event.target.value = '';
-        showToast(`Đã nhập và đồng bộ ${count} độc giả mới!`);
+        showToast(`Đã đồng bộ ${count} độc giả mới và cập nhật ${updated} độc giả!`);
       };
       reader.readAsArrayBuffer(file);
     }
