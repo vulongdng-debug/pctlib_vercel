@@ -1349,6 +1349,19 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Giới tính</label>
+            <select id="formUserGender" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-500">
+              <option value="Nam">Nam</option>
+              <option value="Nữ">Nữ</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Ngày sinh</label>
+            <input type="date" id="formUserBirthDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Email nhận thông báo </label>
             <input type="email" id="formUserEmail" placeholder="hocsinh@pct.edu.vn" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-blue-500" />
           </div>
@@ -3419,6 +3432,13 @@ let pendingFirstLoginUser = null;
         if (codeInput && !codeInput.value) codeInput.placeholder = 'VD: HS12A1-05';
       }
     }
+    function formatBirthDate(dStr) {
+      if (!dStr) return '';
+      const s = String(dStr).trim();
+      const parts = s.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return s;
+    }
     function renderAdminUsers() {
       const q = (document.getElementById('adminUserSearch')?.value || '').toLowerCase().trim();
       const userTypeFilter = document.getElementById('adminUserTypeFilter')?.value || 'ALL';
@@ -3433,9 +3453,14 @@ let pendingFirstLoginUser = null;
         if (userTypeFilter === 'teacher' && !isTeacher) return false;
 
         if (!q) return true;
+        if (!q) return true;
+        const bDateStr = u.birthDate ? formatBirthDate(u.birthDate) : '';
         return String(u.fullName || '').toLowerCase().includes(q) || 
                String(u.cardCode || '').toLowerCase().includes(q) || 
                String(u.group || '').toLowerCase().includes(q) ||
+               (u.gender && String(u.gender).toLowerCase() === q) ||
+               (u.birthDate && String(u.birthDate).includes(q)) ||
+               (bDateStr && bDateStr.includes(q)) ||
                (u.phone && String(u.phone).includes(q)) ||
                (u.email && String(u.email).toLowerCase().includes(q));
       });
@@ -3479,7 +3504,13 @@ let pendingFirstLoginUser = null;
             <td class="py-3.5 px-4 font-mono font-bold text-xs ${isTeacher ? 'text-purple-700' : 'text-blue-700'}">${u.cardCode}</td>
             <td class="py-3.5 px-4">
               <p class="font-bold text-slate-900">${u.fullName}</p>
-              <span class="text-[11px] text-slate-400 font-mono">${isTeacher ? 'Tài khoản Giáo viên' : 'Tài khoản Học sinh'}</span>
+              <div class="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-slate-500 font-medium">
+                <span class="font-mono text-slate-400">${isTeacher ? 'Giáo viên' : 'Học sinh'}</span>
+                ${(u.gender || u.birthDate) ? `
+                  <span>• <strong class="${u.gender === 'Nữ' ? 'text-pink-600' : 'text-blue-600'}">${u.gender || 'Nam'}</strong></span>
+                  ${u.birthDate ? `<span class="text-slate-500 font-mono">• NS: ${formatBirthDate(u.birthDate)}</span>` : ''}
+                ` : ''}
+              </div>
             </td>
             <td class="py-3.5 px-4 text-xs">
               ${isTeacher
@@ -3684,6 +3715,8 @@ let pendingFirstLoginUser = null;
         document.getElementById('formUserCode').value = '';
         document.getElementById('formUserGroup').value = '';
         document.getElementById('formUserName').value = '';
+        document.getElementById('formUserGender').value = 'Nam';
+        document.getElementById('formUserBirthDate').value = '';
         document.getElementById('formUserEmail').value = '';
         document.getElementById('formUserPhone').value = '';
         document.getElementById('formUserPassword').value = '123456';
@@ -3703,6 +3736,8 @@ let pendingFirstLoginUser = null;
         document.getElementById('formUserCode').value = u.cardCode;
         document.getElementById('formUserGroup').value = u.group;
         document.getElementById('formUserName').value = u.fullName;
+        document.getElementById('formUserGender').value = u.gender || 'Nam';
+        document.getElementById('formUserBirthDate').value = u.birthDate || '';
         document.getElementById('formUserEmail').value = u.email || '';
         document.getElementById('formUserPhone').value = u.phone || '';
         document.getElementById('formUserPassword').value = isDefaultReaderPassword(u.password) ? '123456' : '********';
@@ -3726,6 +3761,8 @@ let pendingFirstLoginUser = null;
         cardCode: document.getElementById('formUserCode').value.trim().toUpperCase(),
         group: cleanGroup,
         fullName: document.getElementById('formUserName').value.trim(),
+        gender: document.getElementById('formUserGender').value || 'Nam',
+        birthDate: document.getElementById('formUserBirthDate').value || '',
         email: document.getElementById('formUserEmail').value.trim(),
         phone: document.getElementById('formUserPhone').value.trim() || '',
         password: document.getElementById('formUserPassword').value.trim() || '123456',
@@ -4208,6 +4245,8 @@ async function sendOverdueEmail(id) {
           'STT': index + 1,
           'Mã Thẻ (Username)': u.cardCode,
           'Họ và Tên': u.fullName,
+          'Giới Tính': u.gender || '---',
+          'Ngày Sinh': formatBirthDate(u.birthDate) || '---',
           'Đối Tượng': isTeacher ? 'Giáo viên / Cán bộ' : 'Học sinh',
           'Lớp / Tổ Đơn Vị': groupLabel,
           'Năm Học': u.schoolYear || currentYear,
@@ -4250,7 +4289,17 @@ async function sendOverdueEmail(id) {
     }
 
     function downloadUserTemplate() {
-      const rows = [{ MaThe: 'HS12A3-01', HoTen: 'Phạm Hoàng Nam', LopDonVi: '12A3', Email: 'namph@pct.edu.vn', SoDienThoai: '0905123456', MatKhau: '123456', NamHoc: '2026-2027' }];
+      const rows = [{
+      MaThe: 'HS12A3-01',
+      HoTen: 'Phạm Hoàng Nam',
+      GioiTinh: 'Nam',
+      NgaySinh: '2008-05-15',
+      LopDonVi: '12A3',
+      Email: 'namph@pct.edu.vn',
+      SoDienThoai: '0905123456',
+      MatKhau: '123456',
+      NamHoc: '2026-2027'
+    }];
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Mau_Doc_Gia');
@@ -4277,11 +4326,17 @@ async function sendOverdueEmail(id) {
           if (!existingCodes.has(cardCode)) {
             existingCodes.add(cardCode);
             db.users.push({
-              id: Date.now() + idx, cardCode, fullName,
+              id: Date.now() + idx,
+              cardCode,
+              fullName,
+              gender: String(r.GioiTinh || r.Gender || 'Nam').trim(),
+              birthDate: String(r.NgaySinh || r.BirthDate || r.NgayThangNamSinh || '').trim(),
               group: String(r.LopDonVi || r.Group || 'Khối 12').trim().replace(/^lớp\s+/i, ''),
-              email: String(r.Email || '').trim(), phone: String(r.SoDienThoai || r.Phone || '').trim(),
+              email: String(r.Email || '').trim(),
+              phone: String(r.SoDienThoai || r.Phone || '').trim(),
               password: String(r.MatKhau || r.Password || '123456').trim(),
-              status: 'active', schoolYear: String(r.NamHoc || defaultYear).trim()
+              status: 'active',
+              schoolYear: String(r.NamHoc || defaultYear).trim()
             });
             count++;
           }
