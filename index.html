@@ -36,52 +36,124 @@
     .scanner-active-ring { animation: pulse-ring 2s infinite; }
     @page {
       size: A4 portrait;
-      margin: 8mm 6mm;
+      margin: 6mm 6mm;
     }
     @media print {
-      body * { visibility: hidden !important; }
-      #barcodePrintModal, #barcodePrintModal * { visibility: visible !important; }
-      #barcodePrintModal {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: white !important;
-        display: block !important;
-        overflow: visible !important;
-      }
-      #barcodePrintModalHeader, #barcodePrintModalControls, #barcodePrintModalFooter, .a4-screen-indicator {
+      /* 1. Ẩn toàn bộ các phần tử ngoài luồng in thẻ */
+      body > :not(#barcodePrintModal) {
         display: none !important;
       }
-      #printableBarcodeSheet {
-        box-shadow: none !important;
+      #barcodePrintModalHeader,
+      #barcodePrintModalControls,
+      #barcodePrintModalFooter,
+      .a4-screen-indicator {
+        display: none !important;
+      }
+
+      html, body {
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
+
+      /* 2. Đưa Modal in về luồng tĩnh tự nhiên để in đa trang liên tục */
+      #barcodePrintModal {
+        position: static !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        overflow: visible !important;
+        backdrop-filter: none !important;
+        inset: auto !important;
+        z-index: auto !important;
+      }
+
+      /* 3. Gỡ bỏ max-h-[92vh] và overflow-hidden trên thẻ bao bọc (khắc phục lỗi trang 2, 3 bị trắng) */
+      #barcodePrintModal > div {
+        position: static !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
         border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+        background: transparent !important;
+      }
+
+      #printableBarcodeSheet {
+        position: static !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        min-height: 0 !important;
         padding: 0 !important;
         margin: 0 !important;
-        max-height: none !important;
         overflow: visible !important;
         background: white !important;
-      }
-      .a4-print-page {
         box-shadow: none !important;
         border: none !important;
-        padding: 0 !important;
-        margin: 0 0 10mm 0 !important;
+      }
+
+      #barcodePrintGrid {
+        display: block !important;
+        position: static !important;
         width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* 4. Định dạng từng trang in A4 */
+      .a4-print-page {
+        display: block !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
         page-break-after: always !important;
         break-after: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
+
+      /* Trang cuối cùng không ngắt trang để tránh trang trắng thừa */
+      .a4-print-page:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+
+      /* 5. Lưới 08 thẻ / trang A4: 2 cột x 4 hàng (vừa khít trang, không lẹm mã vạch) */
       .a4-page-grid {
         display: grid !important;
         grid-template-columns: repeat(2, 95mm) !important;
         grid-auto-rows: 66mm !important;
         column-gap: 8mm !important;
-        row-gap: 5mm !important;
+        row-gap: 3mm !important;
+        justify-content: center !important;
+        align-content: start !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
+
       .library-card-item {
         width: 95mm !important;
         height: 66mm !important;
@@ -89,6 +161,7 @@
         break-inside: avoid !important;
         border: 1.5px solid #1e3a8a !important;
         box-sizing: border-box !important;
+        background: white !important;
       }
     }
   </style>
