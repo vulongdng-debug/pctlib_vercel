@@ -4378,7 +4378,110 @@ async function sendOverdueEmail(id) {
       XLSX.utils.book_append_sheet(wb, ws, "Mau_DocGia");
       XLSX.writeFile(wb, "Mau_DanhSach_DocGia_SmartLib.xlsx");
     }
+    function parseBirthDate(val) {
+      if (!val) return '';
+      if (typeof val === 'number') {
+        const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+        return d.toISOString().split('T')[0];
+      }
+      const s = String(val).trim();
+      if (!s) return '';
+      const slashParts = s.split(/[\/\.]/);
+      if (slashParts.length === 3 && slashParts[0].length <= 2 && slashParts[2].length === 4) {
+        const d = slashParts[0].padStart(2, '0');
+        const m = slashParts[1].padStart(2, '0');
+        const y = slashParts[2];
+        return `${y}-${m}-${d}`;
+      }
+      return s;
+    }
 
+    function handleImportUsersExcel(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+        const defaultYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
+        let count = 0;
+        let updated = 0;
+
+        rows.forEach((r, idx) => {
+          const cardCode = String(r.MaThe || r.CardCode || r['Mã thẻ'] || r['Mã Thẻ'] || r['Mã thẻ / Username'] || r['Mã học sinh'] || '').trim().toUpperCase();
+          const fullName = String(r.HoTen || r.FullName || r['Họ và tên'] || r['Họ và Tên'] || r['Họ tên'] || '').trim();
+          if (!cardCode || !fullName) return;
+
+          const rawPass = r.MatKhau ?? r['Mật khẩu'] ?? r['Mật Khẩu'] ?? r.Password ?? r['MK'] ?? r.mat_khau;
+          let cleanPass = String(rawPass ?? '').trim();
+          if (!cleanPass || cleanPass === 'null' || cleanPass === 'undefined' || cleanPass === '********' || cleanPass.startsWith('SHA-256') || cleanPass === 'Đã đổi riêng') {
+            cleanPass = '123456';
+          }
+
+          // Nhận diện cột Đối tượng độc giả (Học sinh vs Giáo viên)
+          const rawType = String(r.DoiTuong || r['Đối tượng'] || r['Đối Tượng'] || r.UserType || r.Target || '').toLowerCase().trim();
+          let parsedType = '';
+          if (rawType.includes('giáo viên') || rawType.includes('gv') || rawType.includes('cán bộ') || rawType === 'teacher') {
+            parsedType = 'teacher';
+          } else if (rawType.includes('học sinh') || rawType.includes('hs') || rawType === 'student') {
+            parsedType = 'student';
+          } else {
+            const grp = String(r.LopDonVi || r.Group || r['Lớp'] || r['Lớp/Tổ'] || r['Lớp / Tổ'] || '').toLowerCase();
+            const nm = fullName.toLowerCase();
+            if (cardCode.startsWith('GV') || nm.startsWith('thầy') || nm.startsWith('cô') || grp.includes('tổ') || grp.includes('bộ môn') || /^(tin|toán|văn|anh|lý|hóa|sinh|sử|địa|gdcd|thể dục|công nghệ|giáo viên)/i.test(grp)) {
+              parsedType = 'teacher';
+            } else {
+              parsedType = 'student';
+            }
+          }
+
+          const existingIdx = db.users.findIndex(u => String(u.cardCode).toUpperCase() === cardCode);
+          if (existingIdx > -1) {
+            const u = db.users[existingIdx];
+            const shouldResetPass = cleanPass !== '123456' || isDefaultReaderPassword(u.password);
+            db.users[existingIdx] = {
+              ...u,
+              userType: parsedType || u.userType || getUserType(u),
+              fullName,
+              gender: String(r.GioiTinh || r.Gender || r['Giới tính'] || r['Giới Tính'] || u.gender || '').trim(),
+              birthDate: parseBirthDate(r.NgaySinh || r.BirthDate || r['Ngày sinh'] || r['Ngày Sinh'] || u.birthDate || ''),
+              group: String(r.LopDonVi || r.Group || r['Lớp'] || r['Lớp/Tổ'] || r['Lớp / Tổ'] || u.group || '').trim(),
+              email: String(r.Email || u.email || '').trim(),
+              phone: String(r.SoDienThoai || r.Phone || r['Số điện thoại'] || r['Số ĐT'] || u.phone || '').trim(),
+              password: shouldResetPass ? hashPassword(cleanPass) : u.password,
+              schoolYear: String(r.NamHoc || r.SchoolYear || r['Năm học'] || u.schoolYear || defaultYear).trim()
+            };
+            updated++;
+          } else {
+            db.users.push({
+              id: Date.now() + idx,
+              cardCode,
+              fullName,
+              userType: parsedType,
+              gender: String(r.GioiTinh || r.Gender || r['Giới tính'] || r['Giới Tính'] || '').trim(),
+              birthDate: parseBirthDate(r.NgaySinh || r.BirthDate || r['Ngày sinh'] || r['Ngày Sinh'] || ''),
+              group: String(r.LopDonVi || r.Group || r['Lớp'] || r['Lớp/Tổ'] || r['Lớp / Tổ'] || 'Chưa xếp lớp').trim(),
+              email: String(r.Email || '').trim(),
+              phone: String(r.SoDienThoai || r.Phone || r['Số điện thoại'] || r['Số ĐT'] || '').trim(),
+              password: hashPassword(cleanPass),
+              schoolYear: String(r.NamHoc || r.SchoolYear || r['Năm học'] || defaultYear).trim(),
+              status: 'active'
+            });
+            count++;
+          }
+        });
+
+        await saveDB('users');
+        renderAdminUsers();
+        renderAdminStats();
+        showNoticeModal('Nhập thành công', `Đã cập nhật dữ liệu từ file Excel:\n- Độc giả thêm mới: ${count}\n- Độc giả cập nhật thông tin: ${updated}`);
+        event.target.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+    
     function exportFullBackupJSON() {
       const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
