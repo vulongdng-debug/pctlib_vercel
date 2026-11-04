@@ -1476,16 +1476,48 @@
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Tìm nhanh Độc giả (Gõ Mã thẻ hoặc Họ tên) *</label>
           <input type="text" id="directBorrowUserFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="filterDirectBorrowUsers(this.value)" placeholder="Gõ VD: 25280101 hoặc Minh Khôi..." class="w-full px-3 py-2 mb-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-500" />
-          <select id="directBorrowUserSelect" required class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-medium"></select>
+          <select id="directBorrowUserSelect" required onchange="handleDirectBorrowUserSelected(this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-medium"></select>
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Quét nhanh Mã Sách bằng Súng hoặc Chọn Sách *</label>
           <input type="text" id="directBorrowBookFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="filterDirectBorrowBooks(this.value)" placeholder="Bắn mã vạch sách (VD: TH12-001) hoặc gõ tên sách..." class="w-full px-3 py-2 mb-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-500 font-mono" />
           <select id="directBorrowBookSelect" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium"></select>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Hạn trả sách *</label>
-          <input type="date" id="directBorrowDueDate" required class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+        <!-- Chọn Ngày mượn (hỗ trợ nhập lùi về quá khứ) & Hạn trả sách -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Ngày mượn sách *</label>
+            <input type="date" id="directBorrowDate" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-600" />
+            <span class="block text-[10px] text-slate-400 mt-0.5">Chọn được ngày trong quá khứ</span>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-semibold text-slate-700">Hạn trả sách *</label>
+              <button type="button" onclick="setDirectBorrowDueFullYear()" class="text-[10px] font-bold text-indigo-600 hover:underline" title="Tự động đặt hạn trả đến hết năm học (31/05)">Hết năm (31/05)</button>
+            </div>
+            <input type="date" id="directBorrowDueDate" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-600" />
+            <span class="block text-[10px] text-slate-400 mt-0.5">HS: 14 ngày • GV: Cả năm học</span>
+          </div>
+        </div>
+
+        <!-- Tình trạng phiếu mượn (Đang mượn hay Đã trả trong quá khứ) -->
+        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <label class="block text-xs font-semibold text-slate-700">Tình trạng phiếu mượn:</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2 rounded-lg border border-blue-200 bg-white cursor-pointer hover:bg-blue-50/50 transition">
+              <input type="radio" name="directBorrowStatus" value="borrowing" checked onchange="toggleDirectBorrowReturnDateUI()" class="text-blue-600 focus:ring-blue-500" />
+              <span class="text-xs font-bold text-blue-900">📚 Đang mượn</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition">
+              <input type="radio" name="directBorrowStatus" value="returned" onchange="toggleDirectBorrowReturnDateUI()" class="text-slate-600 focus:ring-slate-500" />
+              <span class="text-xs font-bold text-slate-700">✓ Đã trả xong</span>
+            </label>
+          </div>
+
+          <div id="directBorrowReturnDateWrapper" class="hidden pt-2 border-t border-slate-200">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Ngày đã hoàn trả thực tế:</label>
+            <input type="date" id="directBorrowReturnDate" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium" />
+          </div>
         </div>
         <div class="pt-3 flex justify-end gap-2 border-t border-slate-200">
           <button type="button" onclick="closeAdminBorrowModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-semibold">Hủy</button>
@@ -2361,6 +2393,10 @@
 
     function calculateFine(borrow) {
       if (borrow.status === 'returned' || borrow.status === 'pending') return 0;
+      // Giáo viên / Cán bộ mượn sách giảng dạy cả năm học: Miễn phí phạt quá hạn
+      const user = db.users.find(u => u.id === borrow.userId);
+      if (user && getUserType(user) === 'teacher') return 0;
+
       const today = new Date();
       today.setHours(0,0,0,0);
       const due = new Date(borrow.dueDate);
@@ -4089,37 +4125,95 @@ async function sendOverdueEmail(id) {
       const bookFilterEl = document.getElementById('directBorrowBookFilter');
       if (bookFilterEl) bookFilterEl.value = '';
       filterDirectBorrowBooks('');
+
+      // Mặc định ngày mượn là hôm nay nhưng cho phép chọn bất kỳ ngày nào trong quá khứ
+      const todayStr = new Date().toISOString().split('T')[0];
+      const borrowDateInput = document.getElementById('directBorrowDate');
+      if (borrowDateInput) borrowDateInput.value = todayStr;
+
       const due = new Date();
       due.setDate(due.getDate() + 14);
       document.getElementById('directBorrowDueDate').value = due.toISOString().split('T')[0];
+
+      const radBorrowing = document.querySelector('input[name="directBorrowStatus"][value="borrowing"]');
+      if (radBorrowing) radBorrowing.checked = true;
+      toggleDirectBorrowReturnDateUI();
+
       document.getElementById('adminBorrowModal').classList.remove('hidden');
     }
 
     function closeAdminBorrowModal() { document.getElementById('adminBorrowModal').classList.add('hidden'); }
 
+    function toggleDirectBorrowReturnDateUI() {
+      const status = document.querySelector('input[name="directBorrowStatus"]:checked')?.value || 'borrowing';
+      const wrapper = document.getElementById('directBorrowReturnDateWrapper');
+      if (wrapper) {
+        wrapper.classList.toggle('hidden', status !== 'returned');
+        if (status === 'returned' && !document.getElementById('directBorrowReturnDate').value) {
+          document.getElementById('directBorrowReturnDate').value = new Date().toISOString().split('T')[0];
+        }
+      }
+    }
+
+    function setDirectBorrowDueFullYear() {
+      const currentYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
+      const m = currentYear.match(/-(\d{4})$/);
+      const endYear = m ? m[1] : '2027';
+      const dueDateInput = document.getElementById('directBorrowDueDate');
+      if (dueDateInput) {
+        dueDateInput.value = `${endYear}-05-31`;
+        showToast(`Đã đặt hạn trả đến hết năm học: 31/05/${endYear}`);
+      }
+    }
+
+    function handleDirectBorrowUserSelected(userId) {
+      const u = db.users.find(x => x.id === Number(userId));
+      if (u && getUserType(u) === 'teacher') {
+        setDirectBorrowDueFullYear();
+      }
+    }
+
     async function saveAdminDirectBorrow(e) {
       e.preventDefault();
       const userId = Number(document.getElementById('directBorrowUserSelect').value);
       const bookId = Number(document.getElementById('directBorrowBookSelect').value);
+      const borrowDate = document.getElementById('directBorrowDate')?.value || new Date().toISOString().split('T')[0];
       const dueDate = document.getElementById('directBorrowDueDate').value;
+      const status = document.querySelector('input[name="directBorrowStatus"]:checked')?.value || 'borrowing';
+      const returnDate = status === 'returned' ? (document.getElementById('directBorrowReturnDate')?.value || borrowDate) : null;
+
       if (!userId) { showNoticeModal('Thiếu thông tin', 'Vui lòng chọn độc giả!'); return; }
+      if (!bookId) { showNoticeModal('Thiếu thông tin', 'Vui lòng chọn đầu sách!'); return; }
+      if (!dueDate) { showNoticeModal('Thiếu thông tin', 'Vui lòng chọn hạn trả sách!'); return; }
+
       const book = db.books.find(b => b.id === bookId);
-      if (!book || book.available <= 0) { showNoticeModal('Hết sách', 'Sách này hiện đã hết bản có sẵn trong kho!'); return; }
-      book.available -= 1;
+      if (!book) { showNoticeModal('Lỗi', 'Không tìm thấy thông tin sách!'); return; }
+
+      // Nếu là phiếu Đang mượn: trừ tồn kho sách sẵn có
+      if (status === 'borrowing') {
+        if (book.available <= 0) {
+          showNoticeModal('Hết sách', `Sách "${book.title}" hiện đã hết bản có sẵn trong kho (0/${book.total})!`);
+          return;
+        }
+        book.available -= 1;
+      }
+
+      const activeYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
       db.borrows.unshift({
         id: Date.now(),
         ticketCode: 'PM-' + Math.floor(1000 + Math.random() * 9000),
         userId,
         bookId,
-        schoolYear: db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027',
-        borrowDate: new Date().toISOString().split('T')[0],
+        schoolYear: activeYear,
+        borrowDate,
         dueDate,
-        returnDate: null,
-        status: 'borrowing'
+        returnDate,
+        status
       });
+
       await saveDB('ALL');
       closeAdminBorrowModal();
-      showToast('Đã lập phiếu mượn trực tiếp thành công!');
+      showToast(status === 'returned' ? 'Đã lưu phiếu mượn trả trong quá khứ thành công!' : 'Đã lập phiếu mượn sách thành công!');
     }
 
     // ==================== IMPORT / EXPORT EXCEL & BACKUP ====================
