@@ -3859,13 +3859,17 @@ let pendingFirstLoginUser = null;
         // 1. Nút Xem chi tiết phiếu mượn
         actionBtns += `<button onclick="openBorrowDetailModal(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition" title="Xem chi tiết phiếu mượn"><i class="ph-bold ph-eye"></i> Xem</button>`;
 
-        // 2. Thao tác duyệt / nhận trả
+        // 2. Thao tác Xác nhận mượn & Nhận trả
         if (b.status === 'pending') {
-          actionBtns += `<button onclick="approvePendingBorrow(${b.id})" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm transition">Duyệt</button>`;
+          actionBtns += `<button onclick="approvePendingBorrow(${b.id})" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 transition" title="Xác nhận duyệt mượn & Tự động gửi Email thông báo cho bạn đọc"><i class="ph-bold ph-check-circle"></i> Xác nhận mượn (Email)</button>`;
         } else if (b.status === 'borrowing') {
-          actionBtns += `<button onclick="markBorrowReturned(${b.id})" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 shadow-sm transition">Thu hồi</button>`;
+          actionBtns += `<button onclick="markBorrowReturned(${b.id})" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 shadow-sm flex items-center gap-1 transition" title="Thu hồi và nhận trả sách vào kho"><i class="ph-bold ph-arrow-counter-clockwise"></i> Thu hồi</button>`;
+          
+          // Nút Báo sách quá hạn qua Email (Đỏ) hoặc Nhắc nhở hạn trả qua Email (Xám)
           if (fine > 0) {
-            actionBtns += `<button onclick="sendOverdueEmail(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-semibold hover:bg-rose-600 shadow-sm inline-flex items-center gap-1 transition"><i class="ph-bold ph-envelope-simple"></i> Đòi</button>`;
+            actionBtns += `<button onclick="sendOverdueEmail(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1 transition" title="Gửi email đòi sách và thông báo phí phạt quá hạn"><i class="ph-bold ph-envelope-simple"></i> Báo quá hạn (Email)</button>`;
+          } else {
+            actionBtns += `<button onclick="sendOverdueEmail(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold shadow-xs inline-flex items-center gap-1 transition" title="Gửi email nhắc nhở hạn trả sách"><i class="ph-bold ph-envelope-simple"></i> Nhắc hạn (Email)</button>`;
           }
         }
 
@@ -3962,12 +3966,23 @@ let pendingFirstLoginUser = null;
         fineBox.classList.add('hidden');
       }
 
-      // Thao tác nhanh
+      // Thao tác nhanh bên trong popup chi tiết (kèm nút gửi Email)
       const actionArea = document.getElementById('detailBorrowActionArea');
       if (b.status === 'pending') {
-        actionArea.innerHTML = `<button type="button" onclick="approvePendingBorrow(${b.id}); closeBorrowDetailModal();" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition flex items-center gap-1 shadow-sm"><i class="ph-bold ph-check"></i> Duyệt giao sách</button>`;
+        actionArea.innerHTML = `
+          <button type="button" onclick="approvePendingBorrow(${b.id}); closeBorrowDetailModal();" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition flex items-center gap-1.5 shadow-sm">
+            <i class="ph-bold ph-check-circle"></i> Xác nhận mượn (Gửi Email)
+          </button>
+        `;
       } else if (b.status === 'borrowing') {
-        actionArea.innerHTML = `<button type="button" onclick="markBorrowReturned(${b.id}); closeBorrowDetailModal();" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition flex items-center gap-1 shadow-sm"><i class="ph-bold ph-check-circle"></i> Thu hồi / Trả sách</button>`;
+        actionArea.innerHTML = `
+          <button type="button" onclick="markBorrowReturned(${b.id}); closeBorrowDetailModal();" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition flex items-center gap-1.5 shadow-sm">
+            <i class="ph-bold ph-arrow-counter-clockwise"></i> Thu hồi / Trả sách
+          </button>
+          <button type="button" onclick="sendOverdueEmail(${b.id})" class="px-3.5 py-2 rounded-xl ${fine > 0 ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'} font-bold transition flex items-center gap-1.5 shadow-sm">
+            <i class="ph-bold ph-envelope-simple"></i> ${fine > 0 ? 'Gửi Email báo quá hạn' : 'Gửi Email nhắc hạn'}
+          </button>
+        `;
       } else {
         actionArea.innerHTML = '';
       }
