@@ -2892,10 +2892,12 @@
       }
 
       if (user.role === 'admin') {
+        const isSuperAdmin = user.isSuperAdmin !== false && !user.isStaff;
         if (adminNavBtn) { adminNavBtn.classList.remove('hidden'); adminNavBtn.classList.add('flex'); }
         if (mobileAdminNavBtn) { mobileAdminNavBtn.classList.remove('hidden'); mobileAdminNavBtn.classList.add('flex'); }
         if (mobileNavContainer) { mobileNavContainer.className = 'grid grid-cols-3 gap-1 p-1 bg-slate-100/90 rounded-xl'; }
-        if (visualToolbar) visualToolbar.style.display = 'flex';
+        // Chỉ hiện thanh công cụ Bật sửa chữ & Đổi màu cho Quản trị trưởng (Super Admin), ẩn với Thủ thư viên
+        if (visualToolbar) visualToolbar.style.display = isSuperAdmin ? 'flex' : 'none';
         container.innerHTML = `
           <div class="flex items-center gap-1.5 sm:gap-2">
             <div class="text-right hidden sm:block">
