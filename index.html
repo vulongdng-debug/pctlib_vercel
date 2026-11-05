@@ -577,10 +577,32 @@
             </button>
           </div>
         </div>
+        <!-- Thanh thông báo thao tác hàng loạt khi có sách được tích chọn -->
+        <div id="adminBookSelectionBar" class="hidden px-5 py-2.5 bg-blue-50 border-b border-blue-200 flex flex-wrap items-center justify-between gap-3 text-xs text-blue-900">
+          <div class="flex items-center gap-2">
+            <i class="ph-bold ph-check-square text-base text-blue-600"></i>
+            <span>Đang chọn riêng lẻ: <strong id="adminBookSelectedCount" class="font-bold text-blue-700 text-sm">0</strong> đầu sách</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportSelectedAdminBooks()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shadow-xs transition">
+              <i class="ph-bold ph-download-simple"></i> Xuất Excel sách đã chọn
+            </button>
+            <button onclick="deleteSelectedAdminBooks()" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold flex items-center gap-1.5 shadow-xs transition" title="Xóa tất cả các đầu sách đang được tích chọn">
+              <i class="ph-bold ph-trash"></i> Xóa sách đã chọn
+            </button>
+            <button onclick="clearAdminBookSelection()" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold transition">
+              Bỏ chọn tất cả
+            </button>
+          </div>
+        </div>
+
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm">
             <thead>
               <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 text-xs uppercase">
+                <th class="py-3.5 px-3 text-center w-12">
+                  <input type="checkbox" id="selectAllAdminBooks" onchange="toggleSelectAllAdminBooks(this)" class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer" title="Chọn / Bỏ chọn tất cả trên trang này" />
+                </th>
                 <th class="py-3.5 px-4">Mã Sách</th>
                 <th class="py-3.5 px-4">Tên sách & Tác giả</th>
                 <th class="py-3.5 px-4">Thể loại</th>
@@ -2297,6 +2319,7 @@
     let usersPerPage = 100;
 
     let adminBookPage = 1;
+    let selectedAdminBookIds = new Set();
     let booksPerPage = 100;
     const INITIAL_DB = {
       currentSchoolYear: '2026-2027',
@@ -3833,22 +3856,127 @@ let pendingFirstLoginUser = null;
       const nextBtn = document.getElementById('btnNextBookPage');
       if (nextBtn) nextBtn.disabled = adminBookPage >= totalPages;
 
-      document.getElementById('adminBookTableBody').innerHTML = pageItems.map(b => `
-        <tr class="hover:bg-slate-50">
-          <td class="py-3.5 px-4 font-mono font-bold text-xs text-blue-700">${b.code}</td>
-          <td class="py-3.5 px-4">
-            <p class="font-semibold text-slate-800">${b.title}</p>
-            <p class="text-xs text-slate-500">${b.author} ${b.publisher ? '• ' + b.publisher : ''}</p>
-          </td>
-          <td class="py-3.5 px-4 text-xs font-medium text-slate-600">${b.category}</td>
-          <td class="py-3.5 px-4 text-xs text-slate-600">${b.shelf || '---'}</td>
-          <td class="py-3.5 px-4 text-center font-bold text-xs ${b.available > 0 ? 'text-emerald-600' : 'text-rose-600'}">${b.available} / ${b.total}</td>
-          <td class="py-3.5 px-4 text-right space-x-2">
-            <button onclick="openBookModal(${b.id})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold hover:bg-blue-100">Sửa</button>
-            <button onclick="deleteBook(${b.id})" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-semibold hover:bg-rose-100">Xóa</button>
-          </td>
-        </tr>
-      `).join('');
+      // Đồng bộ trạng thái ô tích chọn tất cả trên trang hiện tại
+      const allPageChecked = pageItems.length > 0 && pageItems.every(b => selectedAdminBookIds.has(Number(b.id)));
+      const selectAllEl = document.getElementById('selectAllAdminBooks');
+      if (selectAllEl) {
+        selectAllEl.checked = allPageChecked;
+        selectAllEl.indeterminate = !allPageChecked && pageItems.some(b => selectedAdminBookIds.has(Number(b.id)));
+      }
+
+      document.getElementById('adminBookTableBody').innerHTML = pageItems.map(b => {
+        const isChecked = selectedAdminBookIds.has(Number(b.id));
+        return `
+          <tr class="hover:bg-slate-50 ${isChecked ? 'bg-blue-50/40' : ''}">
+            <td class="py-3.5 px-3 text-center">
+              <input type="checkbox" class="admin-book-chk w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer" value="${b.id}" onchange="toggleAdminBookSelect(${b.id}, this.checked)" ${isChecked ? 'checked' : ''} />
+            </td>
+            <td class="py-3.5 px-4 font-mono font-bold text-xs text-blue-700">${b.code}</td>
+            <td class="py-3.5 px-4">
+              <p class="font-semibold text-slate-800">${b.title}</p>
+              <p class="text-xs text-slate-500">${b.author} ${b.publisher ? '• ' + b.publisher : ''}</p>
+            </td>
+            <td class="py-3.5 px-4 text-xs font-medium text-slate-600">${b.category}</td>
+            <td class="py-3.5 px-4 text-xs text-slate-600">${b.shelf || '---'}</td>
+            <td class="py-3.5 px-4 text-center font-bold text-xs ${b.available > 0 ? 'text-emerald-600' : 'text-rose-600'}">${b.available} / ${b.total}</td>
+            <td class="py-3.5 px-4 text-right space-x-2">
+              <button onclick="openBookModal(${b.id})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold hover:bg-blue-100">Sửa</button>
+              <button onclick="deleteBook(${b.id})" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-semibold hover:bg-rose-100">Xóa</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function toggleAdminBookSelect(bookId, isChecked) {
+      const idNum = Number(bookId);
+      if (isChecked) {
+        selectedAdminBookIds.add(idNum);
+      } else {
+        selectedAdminBookIds.delete(idNum);
+      }
+      renderAdminBooks();
+      updateAdminBookSelectionUI();
+    }
+
+    function toggleSelectAllAdminBooks(chk) {
+      let q = (document.getElementById('adminBookSearch')?.value || '').toLowerCase().trim();
+      if (q === 'null' || q === 'undefined') q = '';
+      const filtered = db.books.filter(b => b.title.toLowerCase().includes(q) || b.code.toLowerCase().includes(q) || b.author.toLowerCase().includes(q));
+      const startIdx = (adminBookPage - 1) * booksPerPage;
+      const pageItems = filtered.slice(startIdx, startIdx + booksPerPage);
+
+      if (chk.checked) {
+        pageItems.forEach(b => selectedAdminBookIds.add(Number(b.id)));
+      } else {
+        pageItems.forEach(b => selectedAdminBookIds.delete(Number(b.id)));
+      }
+      renderAdminBooks();
+      updateAdminBookSelectionUI();
+    }
+
+    function clearAdminBookSelection() {
+      selectedAdminBookIds.clear();
+      renderAdminBooks();
+      updateAdminBookSelectionUI();
+    }
+
+    function updateAdminBookSelectionUI() {
+      const count = selectedAdminBookIds.size;
+      const bar = document.getElementById('adminBookSelectionBar');
+      const countEl = document.getElementById('adminBookSelectedCount');
+      if (bar) bar.classList.toggle('hidden', count === 0);
+      if (countEl) countEl.textContent = count;
+    }
+
+    function exportSelectedAdminBooks() {
+      if (selectedAdminBookIds.size === 0) {
+        showNoticeModal('Chưa chọn sách', 'Vui lòng tích chọn ít nhất 1 đầu sách cần xuất Excel!');
+        return;
+      }
+      const targetBooks = db.books.filter(b => selectedAdminBookIds.has(Number(b.id)));
+      const rows = targetBooks.map((b, idx) => ({
+        'STT': idx + 1,
+        'Mã Sách': b.code,
+        'Tên Sách': b.title,
+        'Tác Giả': b.author,
+        'Thể Loại': b.category,
+        'Nhà Xuất Bản': b.publisher || '',
+        'Năm XB': b.publishYear || '',
+        'Số Trang': b.pages || '',
+        'Vị Trí Kệ': b.shelf || '',
+        'Tổng Số Bản': b.total,
+        'Hiện Còn': b.available
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 6 }, { wch: 15 }, { wch: 35 }, { wch: 24 }, { wch: 20 },
+        { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 12 }
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sach_Da_Chon');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `SmartLib_DanhMucSach_DaChon_${targetBooks.length}_Cuon_${dateStr}.xlsx`);
+      showToast(`Đã xuất ${targetBooks.length} đầu sách đã chọn ra file Excel!`);
+    }
+
+    function deleteSelectedAdminBooks() {
+      const count = selectedAdminBookIds.size;
+      if (count === 0) {
+        showNoticeModal('Chưa chọn sách', 'Vui lòng tích chọn ít nhất 1 đầu sách cần xóa!');
+        return;
+      }
+      openCustomConfirmDialog(
+        'Xác nhận xóa sách hàng loạt',
+        `Bạn có chắc chắn muốn xóa vĩnh viễn ${count} đầu sách đã chọn khỏi danh mục thư viện? Thao tác này không thể hoàn tác!`,
+        async () => {
+          db.books = db.books.filter(b => !selectedAdminBookIds.has(Number(b.id)));
+          selectedAdminBookIds.clear();
+          await saveDB('books');
+          updateAdminBookSelectionUI();
+          showToast(`Đã xóa thành công ${count} đầu sách khỏi hệ thống!`);
+        }
+      );
     }
 
     function changeAdminBookPage(delta) {
