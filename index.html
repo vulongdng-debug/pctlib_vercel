@@ -467,12 +467,6 @@
           <h2 class="text-xl font-bold text-slate-900">Quản Trị Hệ Thống Thư Viện (Hỗ trợ 4.000+ Độc giả)</h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <button onclick="switchAdminTab('scanner'); focusScannerInput();" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm scanner-active-ring">
-            <i class="ph-bold ph-barcode text-base"></i> Quầy Súng Quét Mã Vạch
-          </button>
-          <button onclick="openBarcodePrintModal('users')" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-sm" title="Quản lý tạo thẻ và in 08 thẻ độc giả trên trang A4 có khung ảnh 3x4">
-            <i class="ph-bold ph-identification-card text-base"></i> Quản Lý & Xuất Thẻ Thư Viện (A4)
-          </button>
           <button id="btnStaffChangePassTop" onclick="openStaffChangePasswordModal()" class="hidden px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold items-center gap-1.5 shadow-sm">
             <i class="ph-bold ph-key text-base"></i> Đổi Mật Khẩu
           </button>
@@ -739,9 +733,14 @@
               <input type="number" id="finePerDayInput" value="5000" step="1000" onchange="updateFineRate(this.value)" class="w-20 px-2 py-1 rounded bg-white border border-amber-300 font-bold text-slate-800" />
             </div>
           </div>
-          <button onclick="openAdminCreateBorrowModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-            <i class="ph-bold ph-plus-circle"></i> Lập phiếu mượn trực tiếp
-          </button>
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="exportBorrowsExcel()" class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm" title="Xuất danh sách phiếu mượn đang lọc ra file Excel">
+                 <i class="ph-bold ph-file-xls text-base"></i> Xuất Excel Phiếu Mượn
+             </button>
+             <button onclick="openAdminCreateBorrowModal()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+               <i class="ph-bold ph-plus-circle"></i> Lập phiếu mượn trực tiếp
+             </button>
+           </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm">
@@ -929,8 +928,7 @@
           </div>
         </div>
       </div>
-    </section>
-
+    
     <!-- Tab 5: BÁO CÁO & THỐNG KÊ HOẠT ĐỘNG THƯ VIỆN -->
       <div id="admin-tab-stats" class="hidden space-y-6">
         <!-- Toolbar -->
@@ -1141,6 +1139,7 @@
           </div>
         </div>
       </div>
+    </section>
     <!-- VISUAL EDITOR TOOLBAR (ADMIN ONLY) -->
     <div id="visualEditorToolbar" style="display: none;" class="fixed bottom-5 left-5 z-40 bg-slate-900/95 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-2xl shadow-2xl border border-slate-700 flex flex-wrap items-center gap-2.5 text-xs">
       <button onclick="toggleVisualEditText()" id="btnVisualEdit" class="px-3 py-1.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-500 font-semibold flex items-center gap-1.5 transition">
@@ -1408,15 +1407,20 @@
             <label class="block text-xs font-semibold text-slate-600 mb-1">Mã Sách *</label>
             <input type="text" id="formBookCode" required placeholder="VD: TH12-001" class="w-full px-3 py-2 rounded-xl border border-slate-300" />
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Thể loại *</label>
-            <select id="formBookCategory" class="w-full px-3 py-2 rounded-xl border border-slate-300">
-              <option value="Tin học & CNTT">Tin học & CNTT</option>
-              <option value="Khoa học tự nhiên">Khoa học tự nhiên</option>
-              <option value="Văn học & Nghệ thuật">Văn học & Nghệ thuật</option>
-              <option value="Kỹ năng & Kinh tế">Kỹ năng & Kinh tế</option>
-            </select>
-          </div>
+        <div>
+         <label class="block text-xs font-semibold text-slate-600 mb-1">Thể loại *</label>
+         <input type="text" id="formBookCategory" list="bookCategoryDataList" required placeholder="Chọn hoặc gõ thể loại..." class="w-full px-3 py-2 rounded-xl border border-slate-300" />
+         <datalist id="bookCategoryDataList">
+           <option value="Tin học & CNTT"></option>
+           <option value="Khoa học tự nhiên"></option>
+           <option value="Văn học & Nghệ thuật"></option>
+           <option value="Kỹ năng & Kinh tế"></option>
+           <option value="Sách giáo khoa"></option>
+           <option value="Sách tham khảo"></option>
+           <option value="Lịch sử & Địa lý"></option>
+           <option value="Ngoại ngữ"></option>
+         </datalist>
+       </div>
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Tên đầu sách *</label>
@@ -2045,17 +2049,6 @@
           </button>
         </div>
 
-        <!-- Production Mode Switch (Hide 1-Click Demo Credentials on Login Modal) -->
-        <div class="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70 flex items-center justify-between gap-3">
-          <div>
-            <p class="font-bold text-slate-800 text-xs">Chế độ Vận hành Thực tế (Ẩn gợi ý MK Demo)</p>
-            <p class="text-[11px] text-slate-600 mt-0.5">Ẩn khung "Tài khoản thử nghiệm 1-Click" trên cửa sổ Đăng nhập để học sinh không thấy mật khẩu mẫu.</p>
-          </div>
-          <button type="button" id="btnToggleProductionMode" onclick="toggleProductionMode()" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shrink-0 transition shadow-sm">
-            Đang Tắt
-          </button>
-        </div>
-
         <!-- Form Change Admin Username & Password -->
         <form onsubmit="saveAdminSecurityForm(event)" class="space-y-3 pt-2 border-t border-slate-200">
           <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider text-blue-700">Đổi Tài Khoản & Mật Khẩu Admin</h4>
@@ -2566,11 +2559,12 @@
     async function saveDB(changedSection = 'ALL') {
       migrateSecurityDB(db);
       const toStore = {
-        currentSchoolYear: db.currentSchoolYear,
-        finePerDay: db.finePerDay,
-        productionMode: Boolean(db.productionMode),
-        adminAccount: db.adminAccount,
-        books: db.books,
+      currentSchoolYear: db.currentSchoolYear,
+      finePerDay: db.finePerDay,
+      productionMode: Boolean(db.productionMode),
+      adminAccount: db.adminAccount,
+      staffAccounts: db.staffAccounts || [],
+      books: db.books,
         users: db.users,
         borrows: db.borrows
       };
@@ -2940,8 +2934,10 @@
         container.innerHTML = `
           <div class="flex items-center gap-1.5 sm:gap-2">
             <div class="text-right hidden sm:block">
-              <span class="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">Admin</span>
-              <p class="text-xs font-semibold text-slate-800 mt-0.5 truncate max-w-[120px]">${user.fullName}</p>
+              <span class="text-xs font-bold ${user.isStaff ? 'text-purple-700 bg-purple-50 border-purple-200' : 'text-indigo-700 bg-indigo-50 border-indigo-200'} border px-2 py-0.5 rounded-full">
+                ${user.isStaff ? (user.roleTitle || 'Thủ thư viên') : 'Quản trị trưởng (Admin)'}
+              </span>
+              <p class="text-xs font-semibold text-slate-800 mt-0.5 truncate max-w-[140px]">${user.fullName}</p>
             </div>
             ${user.isStaff ? `
               <button onclick="openStaffChangePasswordModal()" title="Đổi mật khẩu tài khoản thủ thư" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold flex items-center gap-1 transition">
@@ -3306,13 +3302,34 @@ let pendingFirstLoginUser = null;
     }
 
     // ==================== RENDER VIEWS ====================
-    function renderPublicBooks() {
-      const query = (document.getElementById('publicSearchInput')?.value || '').trim();
-      const cleanQ = removeVietnameseTones(query);
-      const cat = document.getElementById('publicCategoryFilter')?.value || 'ALL';
-      const status = document.getElementById('publicStatusFilter')?.value || 'ALL';
+    function updateDynamicBookCategories() {
+     const defaultCats = ['Tin học & CNTT', 'Khoa học tự nhiên', 'Văn học & Nghệ thuật', 'Kỹ năng & Kinh tế', 'Sách giáo khoa', 'Sách tham khảo'];
+     const catSet = new Set(defaultCats);
+     (db.books || []).forEach(b => {
+       if (b.category && String(b.category).trim()) catSet.add(String(b.category).trim());
+     });
+     const allCats = Array.from(catSet);
+  
+     const filterEl = document.getElementById('publicCategoryFilter');
+       if (filterEl) {
+       const currentVal = filterEl.value || 'ALL';
+        filterEl.innerHTML = `<option value="ALL">Tất cả thể loại (${allCats.length})</option>` +
+       allCats.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+       }
 
-      const featuredList = db.books.filter(b => b.featured).slice(0, 4);
+     const dataListEl = document.getElementById('bookCategoryDataList');
+       if (dataListEl) {
+         dataListEl.innerHTML = allCats.map(c => `<option value="${c}"></option>`).join('');
+       }
+    }
+
+   function renderPublicBooks() {
+     updateDynamicBookCategories();
+     const query = (document.getElementById('publicSearchInput')?.value || '').trim();
+     const cleanQ = removeVietnameseTones(query);
+     const cat = document.getElementById('publicCategoryFilter')?.value || 'ALL';
+     const status = document.getElementById('publicStatusFilter')?.value || 'ALL';
+     const featuredList = db.books.filter(b => b.featured).slice(0, 4);
       document.getElementById('featuredBooksGrid').innerHTML = featuredList.map(b => createBookCardHTML(b, true)).join('');
 
       const filtered = db.books.filter(b => {
@@ -4252,7 +4269,8 @@ let pendingFirstLoginUser = null;
       document.getElementById('detailBorrowDate').textContent = b.borrowDate || '---';
       document.getElementById('detailBorrowDueDate').textContent = b.dueDate || '---';
       document.getElementById('detailBorrowSchoolYear').textContent = b.schoolYear || db.currentSchoolYear || '2026-2027';
-      document.getElementById('detailBorrowReturnDate').textContent = b.status === 'returned' ? (b.returnDate || 'Đã hoàn trả') : 'Chưa hoàn trả';
+      const staffNote = b.returnedBy ? ` (Thu hồi: ${b.returnedBy})` : (b.processedBy ? ` (Duyệt/Lập: ${b.processedBy})` : '');
+      document.getElementById('detailBorrowReturnDate').textContent = (b.status === 'returned' ? (b.returnDate || 'Đã hoàn trả') : 'Chưa hoàn trả') + staffNote;
 
       // Phạt quá hạn
       const fineBox = document.getElementById('detailBorrowFineBox');
@@ -4398,19 +4416,27 @@ let pendingFirstLoginUser = null;
       showToast('Đã lưu thông tin sách thành công!');
     }
 
-    function deleteBook(id) {
-      const b = db.books.find(x => x.id === id);
-      openCustomConfirmDialog(
-        'Xóa đầu sách',
-        `Bạn có chắc chắn muốn xóa sách "${b ? b.title : ''}" khỏi danh mục?`,
-        async () => {
-          db.books = db.books.filter(x => x.id !== id);
-          await saveDB('books');
-          showToast('Đã xóa đầu sách.');
-        }
-      );
-    }
-
+function deleteBook(id) {
+   const b = db.books.find(x => x.id === id);
+   if (!b) return;
+   const activeBorrows = db.borrows.filter(x => x.bookId === id && (x.status === 'borrowing' || x.status === 'pending'));
+   if (activeBorrows.length > 0) {
+     showNoticeModal(
+       'Không thể xóa sách đang cho mượn',
+       `Đầu sách "${b.title}" hiện đang có ${activeBorrows.length} phiếu mượn chưa hoàn trả! Vui lòng thu hồi sách hoặc xử lý phiếu mượn trước khi xóa.`
+     );
+     return;
+   }
+   openCustomConfirmDialog(
+     'Xóa đầu sách',
+     `Bạn có chắc chắn muốn xóa sách "${b.title}" (${b.code}) khỏi danh mục?`,
+     async () => {
+       db.books = db.books.filter(x => x.id !== id);
+       await saveDB('books');
+       showToast('Đã xóa đầu sách.');
+     }
+   );
+ }
     function openUserModal(id = null) {
       document.getElementById('userFormModal').classList.remove('hidden');
       const defaultYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
@@ -4505,17 +4531,26 @@ let pendingFirstLoginUser = null;
     }
 
     function deleteUser(id) {
-      const u = db.users.find(x => x.id === id);
-      openCustomConfirmDialog(
-        'Xóa thẻ độc giả',
-        `Xóa độc giả "${u ? u.fullName : ''}" (${u ? u.cardCode : ''}) khỏi hệ thống?`,
-        async () => {
-          db.users = db.users.filter(x => x.id !== id);
-          await saveDB('users');
-          showToast('Đã xóa độc giả.');
-        }
-      );
-    }
+   const u = db.users.find(x => x.id === id);
+   if (!u) return;
+   const activeBorrows = db.borrows.filter(x => x.userId === id && (x.status === 'borrowing' || x.status === 'pending'));
+   if (activeBorrows.length > 0) {
+     showNoticeModal(
+       'Độc giả đang giữ sách',
+       `Bạn đọc "${u.fullName}" (${u.cardCode}) hiện đang giữ ${activeBorrows.length} cuốn sách chưa trả! Vui lòng thu hồi sách trước khi xóa thẻ.`
+     );
+     return;
+   }
+   openCustomConfirmDialog(
+     'Xóa thẻ độc giả',
+     `Xóa độc giả "${u.fullName}" (${u.cardCode}) khỏi hệ thống?`,
+     async () => {
+       db.users = db.users.filter(x => x.id !== id);
+       await saveDB('users');
+       showToast('Đã xóa độc giả.');
+     }
+   );
+ }
 
 // ==================== XỬ LÝ DUYỆT / TRẢ SÁCH (CÓ THÔNG BÁO EMAIL) ====================
     const EMAILJS_CONFIG = {
@@ -4551,6 +4586,7 @@ let pendingFirstLoginUser = null;
       if (!b) return;
       b.status = 'borrowing';
       b.borrowDate = new Date().toISOString().split('T')[0];
+      b.processedBy = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
       const user = db.users.find(u => u.id === b.userId);
       const book = db.books.find(x => x.id === b.bookId);
       await saveDB('borrows');
@@ -4563,6 +4599,7 @@ let pendingFirstLoginUser = null;
       if (!b) return;
       b.status = 'returned';
       b.returnDate = new Date().toISOString().split('T')[0];
+      b.returnedBy = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
       const book = db.books.find(x => x.id === b.bookId);
       if (book) book.available = Math.min(book.total, book.available + 1);
       await saveDB('ALL');
@@ -4733,16 +4770,17 @@ async function sendOverdueEmail(id) {
 
       const activeYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
       db.borrows.unshift({
-        id: Date.now(),
-        ticketCode: 'PM-' + Math.floor(1000 + Math.random() * 9000),
-        userId,
-        bookId,
-        schoolYear: activeYear,
-        borrowDate,
-        dueDate,
-        returnDate,
-        status
-      });
+       id: Date.now(),
+       ticketCode: 'PM-' + Math.floor(1000 + Math.random() * 9000),
+       userId,
+       bookId,
+       schoolYear: activeYear,
+       borrowDate,
+       dueDate,
+       returnDate,
+       status,
+       processedBy: db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư'
+     });
 
       await saveDB('ALL');
       closeAdminBorrowModal();
@@ -5048,6 +5086,70 @@ async function sendOverdueEmail(id) {
       closeExportUsersModal();
       showToast(`Đã xuất thành công ${targetUsers.length} độc giả ra tệp ${fileName}!`);
     }
+    function exportBorrowsExcel() {
+   if (!window.XLSX) return;
+   const filter = document.getElementById('adminBorrowFilter')?.value || 'ALL';
+   let q = (document.getElementById('adminBorrowSearch')?.value || '').toLowerCase().trim();
+   const currentYear = db.currentSchoolYear || '2026-2027';
+
+   const list = db.borrows.filter(b => {
+     const matchYear = currentYear === 'ALL' || (b.schoolYear || '2026-2027') === currentYear;
+     if (!matchYear) return false;
+     if (filter !== 'ALL') {
+       if (filter === 'overdue' && !isOverdue(b)) return false;
+       if (filter !== 'overdue' && b.status !== filter) return false;
+     }
+     if (!q) return true;
+     const user = db.users.find(u => u.id === b.userId) || {};
+     const book = db.books.find(x => x.id === b.bookId) || {};
+     return String(b.ticketCode || '').toLowerCase().includes(q) ||
+            String(user.fullName || '').toLowerCase().includes(q) ||
+            String(user.cardCode || '').toLowerCase().includes(q) ||
+            String(user.group || '').toLowerCase().includes(q) ||
+            String(book.title || '').toLowerCase().includes(q) ||
+            String(book.code || '').toLowerCase().includes(q);
+   });
+
+   if (list.length === 0) {
+     showNoticeModal('Không có dữ liệu', 'Không có phiếu mượn nào khớp với bộ lọc hiện tại để xuất Excel!');
+     return;
+   }
+
+   const rows = list.map((b, idx) => {
+     const user = db.users.find(u => u.id === b.userId) || {};
+     const book = db.books.find(x => x.id === b.bookId) || {};
+     const fine = calculateFine(b);
+     const statusLabel = b.status === 'pending' ? 'Chờ duyệt Online' : (b.status === 'returned' ? `Đã trả (${b.returnDate || ''})` : (fine > 0 ? 'Quá hạn' : 'Đang mượn'));
+     return {
+       'STT': idx + 1,
+       'Mã Phiếu': b.ticketCode,
+       'Mã Thẻ': user.cardCode || '---',
+       'Họ và Tên Bạn Đọc': user.fullName || 'Độc giả đã xóa',
+       'Đối Tượng': getUserType(user) === 'teacher' ? 'Giáo viên' : 'Học sinh',
+       'Lớp / Tổ': user.group || '---',
+       'Mã Sách': book.code || '---',
+       'Tên Sách Mượn': book.title || 'Sách đã xóa',
+       'Ngày Mượn': b.borrowDate || '---',
+       'Hạn Trả': b.dueDate || '---',
+       'Ngày Trả Thực Tế': b.returnDate || 'Chưa trả',
+       'Trạng Thái': statusLabel,
+       'Phí Phạt (VNĐ)': fine,
+       'Thủ Thư Xử Lý': b.returnedBy || b.processedBy || '---'
+     };
+   });
+
+   const ws = XLSX.utils.json_to_sheet(rows);
+   ws['!cols'] = [
+     { wch: 6 }, { wch: 14 }, { wch: 15 }, { wch: 24 }, { wch: 12 },
+     { wch: 12 }, { wch: 14 }, { wch: 32 }, { wch: 14 }, { wch: 14 },
+     { wch: 16 }, { wch: 18 }, { wch: 15 }, { wch: 22 }
+   ];
+   const wb = XLSX.utils.book_new();
+   XLSX.utils.book_append_sheet(wb, ws, 'DanhSach_PhieuMuon');
+   const dateStr = new Date().toISOString().slice(0, 10);
+   XLSX.writeFile(wb, `SmartLib_PhieuMuon_${filter}_${dateStr}.xlsx`);
+   showToast(`Đã xuất ${rows.length} phiếu mượn ra file Excel!`);
+ }
     function exportBooksExcel() {
       const rows = db.books.map(b => ({ MaSach: b.code, TenSach: b.title, TacGia: b.author, TheLoai: b.category, NXB: b.publisher, NamXB: b.publishYear, SoTrang: b.pages, KeSach: b.shelf, TongSoBan: b.total, HienCon: b.available }));
       const ws = XLSX.utils.json_to_sheet(rows);
@@ -5272,9 +5374,10 @@ async function sendOverdueEmail(id) {
           if (btn) btn.classList.toggle('hidden', !perms[key]);
         });
 
-        // Nút in thẻ thư viện trên header
-        const btnCards = document.querySelector('button[onclick*="openBarcodePrintModal"]');
-        if (btnCards) btnCards.classList.toggle('hidden', !perms.cards);
+        // Ẩn/hiện tất cả các nút mở trình in thẻ (bao gồm Mục 6) theo quyền perms.cards
+      document.querySelectorAll('button[onclick*="openBarcodePrintModal"]').forEach(btn => {
+        btn.classList.toggle('hidden', !perms.cards);
+      });
 
         // Tự động chuyển đến tab đầu tiên được cấp quyền nếu đang ở tab bị cấm
         const activePanelKey = ['books', 'users', 'borrows', 'scanner', 'stats'].find(k => {
@@ -5291,8 +5394,9 @@ async function sendOverdueEmail(id) {
           const btn = document.getElementById(`admin-tab-btn-${k}`);
           if (btn) btn.classList.remove('hidden');
         });
-        const btnCards = document.querySelector('button[onclick*="openBarcodePrintModal"]');
-        if (btnCards) btnCards.classList.remove('hidden');
+        document.querySelectorAll('button[onclick*="openBarcodePrintModal"]').forEach(btn => {
+        btn.classList.remove('hidden');
+      });
       }
     }
 
