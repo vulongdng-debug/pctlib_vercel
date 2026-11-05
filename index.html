@@ -2545,7 +2545,12 @@
           if ((changedSection === 'ALL' || changedSection === 'settings') && isValidAdminSession) {
             rowsToUpsert.push({
               collection_key: 'settings',
-              payload: { currentSchoolYear: db.currentSchoolYear, finePerDay: db.finePerDay, adminAccount: db.adminAccount },
+              payload: { 
+                currentSchoolYear: db.currentSchoolYear, 
+                finePerDay: db.finePerDay, 
+                adminAccount: db.adminAccount,
+                staffAccounts: db.staffAccounts || []
+              },
               updated_at: new Date().toISOString()
             });
           }
@@ -2609,6 +2614,7 @@
           if (row.collection_key === 'settings' && row.payload) {
             db.finePerDay = row.payload.finePerDay ?? db.finePerDay;
             db.adminAccount = row.payload.adminAccount ?? db.adminAccount;
+            if (Array.isArray(row.payload.staffAccounts)) db.staffAccounts = row.payload.staffAccounts;
             if (row.payload.productionMode !== undefined) db.productionMode = Boolean(row.payload.productionMode);
           }
         });
@@ -2967,13 +2973,41 @@
             return;
           }
         }
-        saveSessionUser({ role: 'admin', username: db.adminAccount.username, fullName: db.adminAccount.fullName, twoFactorVerified: true });
+        saveSessionUser({ role: 'admin', isSuperAdmin: true, isStaff: false, username: db.adminAccount.username, fullName: db.adminAccount.fullName, twoFactorVerified: true });
         closeAuthModal();
         switchView('admin-dashboard');
-        showToast('Đăng nhập quyền Admin thành công!');
+        showToast('Đăng nhập quyền Quản trị trưởng (Admin) thành công!');
         return;
       }
 
+      // 2. Kiểm tra tài khoản Thủ thư viên phụ (Staff)
+      const foundStaff = (db.staffAccounts || []).find(s => 
+        (String(s.username).trim().toUpperCase() === inputUser.toUpperCase() || 
+         (s.email && s.email.trim().toLowerCase() === inputUser.toLowerCase())) && 
+        verifyPassword(inputPass, s.password)
+      );
+      if (foundStaff) {
+        if (foundStaff.status === 'locked') {
+          showNoticeModal('Tài khoản đã bị khóa', 'Tài khoản thủ thư của bạn hiện đang bị tạm khóa. Vui lòng liên hệ Quản trị trưởng (Super Admin)!');
+          return;
+        }
+        saveSessionUser({
+          role: 'admin',
+          isSuperAdmin: false,
+          isStaff: true,
+          staffId: foundStaff.id,
+          username: foundStaff.username,
+          fullName: foundStaff.fullName,
+          roleTitle: foundStaff.roleTitle || 'Thủ thư viên',
+          permissions: foundStaff.permissions || {}
+        });
+        closeAuthModal();
+        switchView('admin-dashboard');
+        showToast(`Xin chào ${foundStaff.fullName}! Đăng nhập quyền ${foundStaff.roleTitle || 'Thủ thư viên'} thành công.`);
+        return;
+      }
+
+      // 3. Kiểm tra tài khoản Độc giả (Học sinh & Giáo viên)
       const foundReader = db.users.find(u =>
         (String(u.cardCode).toLowerCase() === inputUser.toLowerCase() || (u.email && u.email.toLowerCase() === inputUser.toLowerCase())) &&
         verifyPassword(inputPass, u.password || '123456')
