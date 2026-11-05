@@ -173,16 +173,17 @@
     <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
       
       <!-- HÀNG 1: Brand (Trái) + Năm học & Đăng nhập (Phải) -->
-      <div class="flex items-center justify-between h-14 sm:h-16 gap-2">
+      <div class="flex items-center justify-between min-h-[58px] py-1.5 sm:py-0 sm:h-16 gap-2">
         
-        <!-- Brand -->
-        <div class="flex items-center gap-2 sm:gap-2.5 cursor-pointer hover:opacity-90 transition min-w-0" onclick="switchView('reader-home')">
+        <!-- Brand: Tối ưu hiển thị đầy đủ tên trường trên điện thoại không bị dấu 3 chấm -->
+        <div class="flex items-center gap-2 sm:gap-2.5 cursor-pointer hover:opacity-90 transition min-w-0 flex-1" onclick="switchView('reader-home')">
           <img src="logo.png" alt="Logo THPT Phan Châu Trinh" class="w-9 h-9 sm:w-11 sm:h-11 object-contain drop-shadow-xs shrink-0" />
           <div class="min-w-0">
-            <h1 class="font-bold text-xs sm:text-base text-slate-900 leading-tight truncate">
-              Thư viện trường THPT Phan Châu Trinh
+            <h1 class="font-bold text-slate-900 leading-tight">
+              <span class="block text-[10px] sm:text-xs text-slate-500 font-semibold leading-none">Thư viện trường</span>
+              <span class="block text-xs sm:text-base font-extrabold text-blue-950 leading-tight mt-0.5 sm:mt-0 tracking-tight">THPT Phan Châu Trinh</span>
             </h1>
-            <div class="flex items-center gap-1 mt-0.5">
+            <div class="flex items-center gap-1 mt-0.5 flex-wrap">
               <span class="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.2 bg-blue-50 text-blue-600 rounded-full border border-blue-200">Thư viện số</span>
               <div id="adminHeaderBadges" class="hidden inline-flex items-center gap-1">
                 <span id="cloudStatusBadge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
