@@ -461,7 +461,7 @@
 
     <!-- ==================== VIEW 3: ADMIN DASHBOARD ==================== -->
     <section id="view-admin-dashboard" class="hidden space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div id="adminTopControlBanner" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Bảng Điều Khiển Admin</span>
           <h2 class="text-xl font-bold text-slate-900">Quản Trị Hệ Thống Thư Viện (Hỗ trợ 4.000+ Độc giả)</h2>
@@ -551,8 +551,11 @@
         <button onclick="switchAdminTab('stats'); renderAdminDeepStats();" id="admin-tab-btn-stats" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-indigo-700 hover:text-indigo-900 bg-indigo-50/70 rounded-t-xl flex items-center gap-2">
           <i class="ph-bold ph-chart-pie-slice text-lg"></i> 5. Báo Cáo & Thống Kê Thư Viện
         </button>
+        <button onclick="openBarcodePrintModal('users')" id="admin-tab-btn-cards" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-amber-700 hover:text-amber-900 bg-amber-50/70 rounded-t-xl flex items-center gap-2" title="Quản lý tạo thẻ và in 08 thẻ độc giả trên trang A4 có khung ảnh 3x4">
+          <i class="ph-bold ph-identification-card text-lg"></i> 6. Quản Lý & Xuất Thẻ Thư Viện (A4)
+        </button>
         <button onclick="switchAdminTab('staff'); renderAdminStaffList();" id="admin-tab-btn-staff" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-purple-700 hover:text-purple-900 bg-purple-50/70 rounded-t-xl flex items-center gap-2">
-          <i class="ph-bold ph-user-gear text-lg"></i> 6. Phân Quyền & Quản Lý Thủ Thư
+          <i class="ph-bold ph-user-gear text-lg"></i> 7. Phân Quyền & Quản Lý Thủ Thư
         </button>
       </div>
 
@@ -5231,6 +5234,9 @@ async function sendOverdueEmail(id) {
       if (!db.currentUser || db.currentUser.role !== 'admin') return;
       const isSuperAdmin = db.currentUser.isSuperAdmin !== false && !db.currentUser.isStaff;
       const isStaff = Boolean(db.currentUser.isStaff);
+      // Ẩn hoàn toàn cả thanh banner trên cùng đối với tài khoản Thủ thư viên
+      const topBanner = document.getElementById('adminTopControlBanner');
+      if (topBanner) topBanner.classList.toggle('hidden', isStaff);
       const btnStaffPass = document.getElementById('btnStaffChangePassTop');
       if (btnStaffPass) btnStaffPass.classList.toggle('hidden', !isStaff);
       
