@@ -1087,7 +1087,7 @@
             <div>
               <p class="text-xs font-medium text-slate-500">Tổng nhân sự thủ thư</p>
               <h4 id="statTotalStaffCount" class="text-2xl font-bold text-purple-700 mt-1">1</h4>
-              <span id="statStaffSubLabel" class="text-xs text-slate-500 mt-0.5 block">1 Super Admin + 0 Thủ thư viên</span>
+              <span id="statStaffSubLabel" class="text-xs text-slate-500 mt-0.5 block">1 Super Admin + 0 Thủ thư</span>
             </div>
             <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl">
               <i class="ph-duotone ph-users-four"></i>
@@ -2124,7 +2124,7 @@
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Chức vụ / Vị trí trực *</label>
-            <input type="text" id="staffInputRoleTitle" required placeholder="VD: Thủ thư viên" value="Thủ thư viên" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-purple-600" />
+            <input type="text" id="staffInputRoleTitle" required placeholder="VD: Thủ thư" value="Thủ thư" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-purple-600" />
           </div>
         </div>
 
@@ -2214,7 +2214,7 @@
       </form>
     </div>
   </div>
-  <!-- ==================== MODAL ĐỔI MẬT KHẨU THỦ THƯ VIÊN ==================== -->
+  <!-- ==================== MODAL ĐỔI MẬT KHẨU Thủ thư ==================== -->
   <div id="staffChangePasswordModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
       <div class="bg-gradient-to-r from-purple-800 to-indigo-900 p-5 text-white flex items-center justify-between">
@@ -2929,13 +2929,13 @@
         if (adminNavBtn) { adminNavBtn.classList.remove('hidden'); adminNavBtn.classList.add('flex'); }
         if (mobileAdminNavBtn) { mobileAdminNavBtn.classList.remove('hidden'); mobileAdminNavBtn.classList.add('flex'); }
         if (mobileNavContainer) { mobileNavContainer.className = 'grid grid-cols-3 gap-1 p-1 bg-slate-100/90 rounded-xl'; }
-        // Chỉ hiện thanh công cụ Bật sửa chữ & Đổi màu cho Quản trị trưởng (Super Admin), ẩn với Thủ thư viên
+        // Chỉ hiện thanh công cụ Bật sửa chữ & Đổi màu cho Quản trị trưởng (Super Admin), ẩn với Thủ thư
         if (visualToolbar) visualToolbar.style.display = isSuperAdmin ? 'flex' : 'none';
         container.innerHTML = `
           <div class="flex items-center gap-1.5 sm:gap-2">
             <div class="text-right hidden sm:block">
               <span class="text-xs font-bold ${user.isStaff ? 'text-purple-700 bg-purple-50 border-purple-200' : 'text-indigo-700 bg-indigo-50 border-indigo-200'} border px-2 py-0.5 rounded-full">
-                ${user.isStaff ? (user.roleTitle || 'Thủ thư viên') : 'Quản trị trưởng (Admin)'}
+                ${user.isStaff ? (user.roleTitle || 'Thủ thư') : 'Quản trị trưởng (Admin)'}
               </span>
               <p class="text-xs font-semibold text-slate-800 mt-0.5 truncate max-w-[140px]">${user.fullName}</p>
             </div>
@@ -3022,7 +3022,7 @@
         return;
       }
 
-      // 2. Kiểm tra tài khoản Thủ thư viên phụ (Staff)
+      // 2. Kiểm tra tài khoản Thủ thư phụ (Staff)
       const foundStaff = (db.staffAccounts || []).find(s => 
         (String(s.username).trim().toUpperCase() === inputUser.toUpperCase() || 
          (s.email && s.email.trim().toLowerCase() === inputUser.toLowerCase())) && 
@@ -3040,12 +3040,12 @@
           staffId: foundStaff.id,
           username: foundStaff.username,
           fullName: foundStaff.fullName,
-          roleTitle: foundStaff.roleTitle || 'Thủ thư viên',
+          roleTitle: foundStaff.roleTitle || 'Thủ thư',
           permissions: foundStaff.permissions || {}
         });
         closeAuthModal();
         switchView('admin-dashboard');
-        showToast(`Xin chào ${foundStaff.fullName}! Đăng nhập quyền ${foundStaff.roleTitle || 'Thủ thư viên'} thành công.`);
+        showToast(`Xin chào ${foundStaff.fullName}! Đăng nhập quyền ${foundStaff.roleTitle || 'Thủ thư'} thành công.`);
         return;
       }
 
@@ -5336,7 +5336,7 @@ async function sendOverdueEmail(id) {
       if (!db.currentUser || db.currentUser.role !== 'admin') return;
       const isSuperAdmin = db.currentUser.isSuperAdmin !== false && !db.currentUser.isStaff;
       const isStaff = Boolean(db.currentUser.isStaff);
-      // Ẩn hoàn toàn cả thanh banner trên cùng đối với tài khoản Thủ thư viên
+      // Ẩn hoàn toàn cả thanh banner trên cùng đối với tài khoản Thủ thư
       const topBanner = document.getElementById('adminTopControlBanner');
       if (topBanner) topBanner.classList.toggle('hidden', isStaff);
       const btnStaffPass = document.getElementById('btnStaffChangePassTop');
@@ -5412,7 +5412,7 @@ async function sendOverdueEmail(id) {
       const totalEl = document.getElementById('statTotalStaffCount');
       if (totalEl) totalEl.textContent = totalStaff;
       const subEl = document.getElementById('statStaffSubLabel');
-      if (subEl) subEl.textContent = `1 Quản trị trưởng + ${staffList.length} Thủ thư viên`;
+      if (subEl) subEl.textContent = `1 Quản trị trưởng + ${staffList.length} Thủ thư`;
       const activeEl = document.getElementById('statActiveStaffCount');
       if (activeEl) activeEl.textContent = activeStaff;
       const lockedEl = document.getElementById('statLockedStaffCount');
@@ -5483,7 +5483,7 @@ async function sendOverdueEmail(id) {
                   <p class="font-bold text-slate-900">${s.fullName}</p>
                   <div class="flex items-center gap-1.5 mt-0.5">
                     <span class="font-mono font-bold text-slate-700 text-xs bg-slate-100 px-1.5 py-0.2 rounded">${s.username}</span>
-                    <span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">${s.roleTitle || 'Thủ thư viên'}</span>
+                    <span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">${s.roleTitle || 'Thủ thư'}</span>
                   </div>
                 </div>
               </div>
@@ -5542,7 +5542,7 @@ async function sendOverdueEmail(id) {
         userInput.readOnly = false;
         passInput.value = '123456';
         nameInput.value = '';
-        roleInput.value = 'Thủ thư viên';
+        roleInput.value = 'Thủ thư';
         emailInput.value = '';
         phoneInput.value = '';
         setCounterStaffPermsPreset();
@@ -5555,7 +5555,7 @@ async function sendOverdueEmail(id) {
         userInput.readOnly = true;
         passInput.value = '********';
         nameInput.value = s.fullName;
-        roleInput.value = s.roleTitle || 'Thủ thư viên';
+        roleInput.value = s.roleTitle || 'Thủ thư';
         emailInput.value = s.email || '';
         phoneInput.value = s.phone || '';
 
@@ -5598,7 +5598,7 @@ async function sendOverdueEmail(id) {
       const username = sanitizeText(document.getElementById('staffInputUsername').value.trim());
       const rawPassword = document.getElementById('staffInputPassword').value.trim();
       const fullName = sanitizeText(document.getElementById('staffInputFullName').value.trim());
-      const roleTitle = sanitizeText(document.getElementById('staffInputRoleTitle').value.trim()) || 'Thủ thư viên';
+      const roleTitle = sanitizeText(document.getElementById('staffInputRoleTitle').value.trim()) || 'Thủ thư';
       const email = sanitizeText(document.getElementById('staffInputEmail').value.trim());
       const phone = sanitizeText(document.getElementById('staffInputPhone').value.trim());
 
@@ -5684,7 +5684,7 @@ async function sendOverdueEmail(id) {
         }
       );
     }
-    // ==================== ĐỔI MẬT KHẨU THỦ THƯ VIÊN ====================
+    // ==================== ĐỔI MẬT KHẨU Thủ thư ====================
     function openStaffChangePasswordModal() {
       if (!db.currentUser || !db.currentUser.isStaff) return;
       document.getElementById('staffChangePassSubtitle').textContent = `Tài khoản: ${db.currentUser.username} (${db.currentUser.fullName})`;
