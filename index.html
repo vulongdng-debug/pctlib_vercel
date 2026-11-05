@@ -180,7 +180,7 @@
           <img src="logo.png" alt="Logo THPT Phan Châu Trinh" class="w-9 h-9 sm:w-11 sm:h-11 object-contain drop-shadow-xs shrink-0" />
           <div class="min-w-0">
             <h1 class="font-bold text-xs sm:text-base text-slate-900 leading-tight truncate">
-              Thư viện THPT Phan Châu Trinh
+              Thư viện trường THPT Phan Châu Trinh
             </h1>
             <div class="flex items-center gap-1 mt-0.5">
               <span class="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.2 bg-blue-50 text-blue-600 rounded-full border border-blue-200">Thư viện số</span>
@@ -1163,7 +1163,7 @@
             <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-900/20">
               <i class="ph-bold ph-books text-lg"></i>
             </div>
-            <h3 class="text-base font-bold text-white">Thư viện THPT Phan Châu Trinh</h3>
+            <h3 class="text-base font-bold text-white">Thư viện trường THPT Phan Châu Trinh</h3>
           </div>
           <p class="text-sm text-slate-400 leading-relaxed text-justify">
             Hệ thống thư viện điện tử SmartLib hỗ trợ tra cứu, mượn trả tài liệu trực tuyến và quản trị số hóa dành riêng cho giáo viên, học sinh trường THPT Phan Châu Trinh, TP. Đà Nẵng.
@@ -3642,7 +3642,7 @@ let pendingFirstLoginUser = null;
       const overdueList = db.borrows.filter(b => isOverdue(b));
 
       const overviewData = [
-        { ChiTieu: 'BÁO CÁO THỐNG KÊ HOẠT ĐỘNG THƯ VIỆN THPT PHAN CHÂU TRINH', GiaTri: '' },
+        { ChiTieu: 'BÁO CÁO THỐNG KÊ HOẠT ĐỘNG Thư viện trường THPT Phan Châu Trinh', GiaTri: '' },
         { ChiTieu: 'Năm học báo cáo', GiaTri: currentYear },
         { ChiTieu: 'Ngày xuất báo cáo', GiaTri: new Date().toLocaleDateString('vi-VN') },
         { ChiTieu: 'Tổng số đầu sách trong kho', GiaTri: db.books.length },
@@ -6289,7 +6289,7 @@ async function sendOverdueEmail(id) {
         grid.innerHTML = labelItems.map((item, idx) => `
           <div class="bg-white border-2 border-dashed border-slate-300 rounded-xl p-3 text-center flex flex-col justify-between shadow-sm">
             <div>
-              <p class="text-[10px] font-bold uppercase tracking-wider text-blue-700">THƯ VIỆN THPT PHAN CHÂU TRINH</p>
+              <p class="text-[10px] font-bold uppercase tracking-wider text-blue-700">Thư viện trường THPT Phan Châu Trinh</p>
               <p class="text-xs font-bold text-slate-900 line-clamp-1 mt-0.5">${item.book.title}</p>
               <p class="text-[10px] text-slate-500">${item.book.category} • <strong>${item.book.shelf || 'Kệ A1'}</strong> ${item.totalCopies > 1 ? `(Bản #${item.copyIndex})` : ''}</p>
             </div>
