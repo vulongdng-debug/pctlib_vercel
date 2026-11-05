@@ -463,7 +463,7 @@
     <section id="view-admin-dashboard" class="hidden space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Bảng Điều Khiển Thủ Thư</span>
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Bảng Điều Khiển Admin</span>
           <h2 class="text-xl font-bold text-slate-900">Quản Trị Hệ Thống Thư Viện (Hỗ trợ 4.000+ Độc giả)</h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
@@ -547,6 +547,9 @@
         </button>
         <button onclick="switchAdminTab('stats'); renderAdminDeepStats();" id="admin-tab-btn-stats" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-indigo-700 hover:text-indigo-900 bg-indigo-50/70 rounded-t-xl flex items-center gap-2">
           <i class="ph-bold ph-chart-pie-slice text-lg"></i> 5. Báo Cáo & Thống Kê Thư Viện
+        </button>
+        <button onclick="switchAdminTab('staff'); renderAdminStaffList();" id="admin-tab-btn-staff" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-purple-700 hover:text-purple-900 bg-purple-50/70 rounded-t-xl flex items-center gap-2">
+          <i class="ph-bold ph-user-gear text-lg"></i> 6. Phân Quyền & Quản Lý Thủ Thư
         </button>
       </div>
 
@@ -1052,6 +1055,82 @@
                 </tr>
               </thead>
               <tbody id="statOverdueTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- Tab 6: Phân Quyền & Quản Lý Nhân Sự Thủ Thư (Super Admin) -->
+      <div id="admin-tab-staff" class="hidden space-y-6">
+        <!-- Toolbar -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <i class="ph-fill ph-shield-check"></i> Quyền Quản Trị Trưởng (Super Admin)
+              </span>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mt-1">Phân Quyền & Quản Lý Nhân Sự Thủ Thư</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Tạo tài khoản phụ cho nhân viên thư viện và phân quyền chi tiết từng chức năng sử dụng</p>
+          </div>
+          <button type="button" onclick="openStaffModal()" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition">
+            <i class="ph-bold ph-user-plus text-base"></i> + Thêm Thủ Thư Mới
+          </button>
+        </div>
+
+        <!-- 3 Thẻ KPI -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500">Tổng nhân sự thủ thư</p>
+              <h4 id="statTotalStaffCount" class="text-2xl font-bold text-purple-700 mt-1">1</h4>
+              <span id="statStaffSubLabel" class="text-xs text-slate-500 mt-0.5 block">1 Super Admin + 0 Thủ thư viên</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl">
+              <i class="ph-duotone ph-users-four"></i>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500">Đang hoạt động</p>
+              <h4 id="statActiveStaffCount" class="text-2xl font-bold text-emerald-600 mt-1">1</h4>
+              <span class="text-xs text-emerald-700 mt-0.5 block">Có quyền đăng nhập ca trực</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl">
+              <i class="ph-duotone ph-check-circle"></i>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500">Đang tạm khóa</p>
+              <h4 id="statLockedStaffCount" class="text-2xl font-bold text-rose-600 mt-1">0</h4>
+              <span class="text-xs text-slate-500 mt-0.5 block">Tạm ngưng phân quyền</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl">
+              <i class="ph-duotone ph-lock-key"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bảng danh sách thủ thư & bảng phân quyền -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <i class="ph-bold ph-list-numbers text-purple-600 text-base"></i> Danh Sách Tài Khoản & Bảng Phân Quyền Chi Tiết
+            </h4>
+            <span class="text-xs text-slate-500">Mật khẩu được mã hóa SHA-256 an toàn</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 text-xs uppercase">
+                  <th class="py-3 px-4">Tài khoản & Chức danh</th>
+                  <th class="py-3 px-4">Thông tin liên hệ</th>
+                  <th class="py-3 px-4">Quyền hạn chức năng</th>
+                  <th class="py-3 px-4 text-center">Trạng thái</th>
+                  <th class="py-3 px-4 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="adminStaffTableBody" class="divide-y divide-slate-100"></tbody>
             </table>
           </div>
         </div>
@@ -1912,7 +1991,7 @@
           <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 uppercase">
             <i class="ph-fill ph-shield-check"></i> Bảo mật Cấp độ 1 Đang Bật
           </span>
-          <h3 class="text-base font-bold mt-1">Trung Tâm Bảo Mật & Tài Khoản Thủ Thư</h3>
+          <h3 class="text-base font-bold mt-1">Trung Tâm Bảo Mật & Tài Khoản Admin</h3>
         </div>
         <button type="button" onclick="closeSecurityCenterModal()" class="text-white/80 hover:text-white"><i class="ph-bold ph-x text-xl"></i></button>
       </div>
@@ -1973,7 +2052,7 @@
 
         <!-- Form Change Admin Username & Password -->
         <form onsubmit="saveAdminSecurityForm(event)" class="space-y-3 pt-2 border-t border-slate-200">
-          <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider text-blue-700">Đổi Tài Khoản & Mật Khẩu Thủ Thư (Admin)</h4>
+          <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider text-blue-700">Đổi Tài Khoản & Mật Khẩu Admin</h4>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">Tên đăng nhập Admin *</label>
@@ -2014,6 +2093,128 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL THÊM / CẬP NHẬT TÀI KHOẢN & PHÂN QUYỀN THỦ THƯ ==================== -->
+  <div id="staffFormModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
+      <div class="bg-gradient-to-r from-purple-800 to-indigo-900 p-5 text-white flex items-center justify-between">
+        <div>
+          <span class="text-xs uppercase tracking-wider text-purple-300 font-bold">Phân Quyền Hệ Thống</span>
+          <h3 id="staffFormModalTitle" class="text-base font-bold mt-0.5">Thêm Tài Khoản Thủ Thư Mới</h3>
+        </div>
+        <button type="button" onclick="closeStaffModal()" class="text-white/80 hover:text-white text-xl"><i class="ph-bold ph-x"></i></button>
+      </div>
+
+      <form onsubmit="saveStaffForm(event)" class="p-6 space-y-4 text-sm">
+        <input type="hidden" id="staffEditId" />
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Tên đăng nhập (Username) *</label>
+            <input type="text" id="staffInputUsername" required placeholder="VD: thuthu01" autocapitalize="none" autocorrect="off" spellcheck="false" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs focus:outline-none focus:border-purple-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Mật khẩu *</label>
+            <input type="text" id="staffInputPassword" required minlength="6" placeholder="Tối thiểu 6 ký tự..." class="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs focus:outline-none focus:border-purple-600" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Họ và tên thủ thư *</label>
+            <input type="text" id="staffInputFullName" required placeholder="VD: Cô Lê Thị Hà" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-purple-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Chức vụ / Vị trí trực *</label>
+            <input type="text" id="staffInputRoleTitle" required placeholder="VD: Thủ thư viên" value="Thủ thư viên" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-purple-600" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Email nhận thông báo</label>
+            <input type="email" id="staffInputEmail" placeholder="ha.le@pct.edu.vn" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-purple-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Số điện thoại</label>
+            <input type="tel" id="staffInputPhone" placeholder="0905xxxxxx" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-purple-600" />
+          </div>
+        </div>
+
+        <!-- Khung thiết lập các quyền sử dụng chức năng -->
+        <div class="p-3.5 bg-purple-50/60 border border-purple-200 rounded-xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold text-purple-900 uppercase tracking-wider">
+              <i class="ph-bold ph-key"></i> Thiết lập quyền sử dụng chức năng:
+            </label>
+            <div class="flex items-center gap-1.5 text-[11px]">
+              <button type="button" onclick="setAllStaffPerms(true)" class="text-purple-700 font-bold hover:underline">Chọn tất cả</button>
+              <span class="text-purple-300">•</span>
+              <button type="button" onclick="setCounterStaffPermsPreset()" class="text-indigo-600 font-bold hover:underline">Trực quầy POS</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <label class="flex items-start gap-2 p-2 rounded-lg bg-white border border-purple-100 hover:bg-purple-100/40 cursor-pointer transition">
+              <input type="checkbox" id="perm_books" class="mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
+              <div>
+                <strong class="text-slate-800 block">1. Quản lý Sách</strong>
+                <span class="text-[10px] text-slate-500">Thêm, sửa, xóa, nhập/xuất Excel sách</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2 p-2 rounded-lg bg-white border border-purple-100 hover:bg-purple-100/40 cursor-pointer transition">
+              <input type="checkbox" id="perm_users" class="mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
+              <div>
+                <strong class="text-slate-800 block">2. Quản lý Độc Giả</strong>
+                <span class="text-[10px] text-slate-500">Cấp thẻ, sửa thông tin, chuyển lớp</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2 p-2 rounded-lg bg-white border border-purple-100 hover:bg-purple-100/40 cursor-pointer transition">
+              <input type="checkbox" id="perm_borrows" class="mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" checked />
+              <div>
+                <strong class="text-slate-800 block">3. Quản lý Mượn/Trả</strong>
+                <span class="text-[10px] text-slate-500">Lập phiếu, duyệt online, nhận trả</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2 p-2 rounded-lg bg-white border border-purple-100 hover:bg-purple-100/40 cursor-pointer transition">
+              <input type="checkbox" id="perm_scanner" class="mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" checked />
+              <div>
+                <strong class="text-slate-800 block">4. Quầy Súng Quét POS</strong>
+                <span class="text-[10px] text-slate-500">Bắn mã vạch trực quầy siêu tốc</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2 p-2 rounded-lg bg-white border border-purple-100 hover:bg-purple-100/40 cursor-pointer transition">
+              <input type="checkbox" id="perm_cards" class="mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
+              <div>
+                <strong class="text-slate-800 block">5. Xuất Thẻ A4 & Tem Sách</strong>
+                <span class="text-[10px] text-slate-500">Tạo mã vạch và in thẻ độc giả</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2 p-2 rounded-lg bg-white border border-purple-100 hover:bg-purple-100/40 cursor-pointer transition">
+              <input type="checkbox" id="perm_stats" class="mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
+              <div>
+                <strong class="text-slate-800 block">6. Báo Cáo & Thống Kê</strong>
+                <span class="text-[10px] text-slate-500">Xem phân tích & xuất báo cáo Excel</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2 border-t border-slate-200">
+          <button type="button" onclick="closeStaffModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            Hủy
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm transition">
+            Lưu Tài Khoản & Quyền
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
   <!-- ==================== MODAL 8: CUSTOM IN-PAGE DIALOG (CONFIRM & PASSWORD PROMPT) ==================== -->
   <div id="customDialogModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
@@ -2068,7 +2269,7 @@
       currentSchoolYear: '2026-2027',
       finePerDay: 5000,
       productionMode: true,
-      adminAccount: { username: 'ADMIN', password: 'admin123', fullName: 'Thủ Thư Quản Trị', email: 'longnv@pct.edu.vn', twoFactorEnabled: true },
+      adminAccount: { username: 'ADMIN', password: 'admin123', fullName: 'Quản Trị', email: 'longnv@pct.edu.vn', twoFactorEnabled: true },
       books: [
         { id: 1, code: 'TH12-001', title: 'Sách giáo khoa Tin học 12 - Cánh Diều (Định hướng CS & ICT)', author: 'Hồ Sĩ Đàm, Hồ Cẩm Hà, Nguyễn Thế Lộc', category: 'Tin học & CNTT', publisher: 'NXB Đại học Sư phạm', shelf: 'Kệ A1', total: 15, available: 12, featured: true, desc: 'Tài liệu chuẩn chương trình GDPT 2018 gồm HTML/CSS, Trí tuệ nhân tạo, Mạng máy tính và Cơ sở dữ liệu.' },
         { id: 2, code: 'TH12-002', title: 'Lập trình Web Full-Stack với HTML5, Tailwind CSS & JavaScript', author: 'Nguyễn Vũ Long', category: 'Tin học & CNTT', publisher: 'NXB Thông tin & Truyền thông', shelf: 'Kệ A1', total: 8, available: 7, featured: true, desc: 'Hướng dẫn thiết kế giao diện web hiện đại, tương tác DOM và xây dựng ứng dụng quản lý thực tế.' },
@@ -2243,7 +2444,7 @@
       if (!parsed.adminAccount) parsed.adminAccount = JSON.parse(JSON.stringify(INITIAL_DB.adminAccount));
       parsed.adminAccount.password = hashPassword(parsed.adminAccount.password || 'admin123');
       parsed.adminAccount.username = sanitizeText(parsed.adminAccount.username || 'ADMIN');
-      parsed.adminAccount.fullName = sanitizeText(parsed.adminAccount.fullName || 'Thủ Thư Quản Trị');
+      parsed.adminAccount.fullName = sanitizeText(parsed.adminAccount.fullName || 'Quản Trị');
       parsed.adminAccount.email = sanitizeText(parsed.adminAccount.email || 'longnv@pct.edu.vn');
       if (parsed.adminAccount.twoFactorEnabled === undefined) parsed.adminAccount.twoFactorEnabled = true;
       parsed.productionMode = true;
@@ -2692,7 +2893,7 @@
         container.innerHTML = `
           <div class="flex items-center gap-1.5 sm:gap-2">
             <div class="text-right hidden sm:block">
-              <span class="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">Thủ thư (Admin)</span>
+              <span class="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">Admin</span>
               <p class="text-xs font-semibold text-slate-800 mt-0.5 truncate max-w-[120px]">${user.fullName}</p>
             </div>
             <button onclick="handleLogout()" title="Đăng xuất" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold flex items-center gap-1 transition">
@@ -2769,7 +2970,7 @@
         saveSessionUser({ role: 'admin', username: db.adminAccount.username, fullName: db.adminAccount.fullName, twoFactorVerified: true });
         closeAuthModal();
         switchView('admin-dashboard');
-        showToast('Đăng nhập quyền Thủ thư (Admin) thành công!');
+        showToast('Đăng nhập quyền Admin thành công!');
         return;
       }
 
@@ -2975,7 +3176,7 @@ let pendingFirstLoginUser = null;
         return;
       }
       if (targetView === 'admin-dashboard' && db.currentUser.role !== 'admin') {
-        showNoticeModal('Từ chối truy cập', 'Khu vực này chỉ dành riêng cho Thủ thư (Admin)!');
+        showNoticeModal('Từ chối truy cập', 'Khu vực này chỉ dành riêng cho Admin!');
         return;
       }
       switchView(targetView);
@@ -3438,8 +3639,26 @@ let pendingFirstLoginUser = null;
       showToast('Đã xuất báo cáo thống kê đầy đủ ra file Excel!');
     }
 
+    function hasAdminPermission(permKey) {
+      if (!db.currentUser || db.currentUser.role !== 'admin') return false;
+      if (db.currentUser.isSuperAdmin !== false && !db.currentUser.isStaff) return true;
+      const perms = db.currentUser.permissions || {};
+      return Boolean(perms[permKey]);
+    }
+
     function switchAdminTab(tab) {
-      ['books', 'users', 'borrows', 'scanner', 'stats'].forEach(t => {
+      if (tab === 'staff') {
+        const isSuperAdmin = db.currentUser && db.currentUser.role === 'admin' && (db.currentUser.isSuperAdmin !== false && !db.currentUser.isStaff);
+        if (!isSuperAdmin) {
+          showNoticeModal('Từ chối truy cập', 'Mục Phân quyền & Quản lý Thủ thư chỉ dành riêng cho Quản trị trưởng (Super Admin)!');
+          return;
+        }
+      } else if (!hasAdminPermission(tab)) {
+        showNoticeModal('Chưa được phân quyền', 'Tài khoản của bạn chưa được cấp quyền sử dụng mục này! Vui lòng liên hệ Quản trị trưởng.');
+        return;
+      }
+
+      ['books', 'users', 'borrows', 'scanner', 'stats', 'staff'].forEach(t => {
         const panel = document.getElementById(`admin-tab-${t}`);
         if (panel) panel.classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`admin-tab-btn-${t}`);
@@ -3448,6 +3667,8 @@ let pendingFirstLoginUser = null;
           btn.className = t === tab ? 'px-4 py-2.5 text-sm font-bold border-b-2 border-emerald-600 text-emerald-700 bg-emerald-50 rounded-t-xl flex items-center gap-2' : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-emerald-700 hover:text-emerald-900 bg-emerald-50/60 rounded-t-xl flex items-center gap-2';
         } else if (t === 'stats') {
           btn.className = t === tab ? 'px-4 py-2.5 text-sm font-bold border-b-2 border-indigo-600 text-indigo-700 bg-indigo-50 rounded-t-xl flex items-center gap-2' : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-indigo-700 hover:text-indigo-900 bg-indigo-50/60 rounded-t-xl flex items-center gap-2';
+        } else if (t === 'staff') {
+          btn.className = t === tab ? 'px-4 py-2.5 text-sm font-bold border-b-2 border-purple-600 text-purple-700 bg-purple-50 rounded-t-xl flex items-center gap-2' : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-purple-700 hover:text-purple-900 bg-purple-50/60 rounded-t-xl flex items-center gap-2';
         } else {
           btn.className = t === tab ? 'px-4 py-2.5 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 flex items-center gap-2' : 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 flex items-center gap-2';
         }
@@ -3458,6 +3679,8 @@ let pendingFirstLoginUser = null;
         setTimeout(focusScannerInput, 80);
       } else if (tab === 'stats') {
         renderAdminDeepStats();
+      } else if (tab === 'staff') {
+        renderAdminStaffList();
       }
     }
 
@@ -4926,6 +5149,352 @@ async function sendOverdueEmail(id) {
       reader.readAsText(file);
     }
 
+    // ==================== QUẢN LÝ TÀI KHOẢN & PHÂN QUYỀN THỦ THƯ ====================
+    function updateAdminUIPermissions() {
+      if (!db.currentUser || db.currentUser.role !== 'admin') return;
+      const isSuperAdmin = db.currentUser.isSuperAdmin !== false && !db.currentUser.isStaff;
+      const isStaff = Boolean(db.currentUser.isStaff);
+
+      // Tab 6: Chỉ Super Admin thấy
+      const btnTabStaff = document.getElementById('admin-tab-btn-staff');
+      if (btnTabStaff) btnTabStaff.classList.toggle('hidden', !isSuperAdmin);
+
+      // Các nút tối cao trên thanh công cụ quản trị (chỉ Super Admin thấy)
+      const btnSecurity = document.querySelector('button[onclick*="openSecurityCenterModal"]');
+      const btnCloud = document.querySelector('button[onclick*="openCloudConfigModal"]');
+      const btnBackupJSON = document.querySelector('button[onclick*="exportFullBackupJSON"]');
+      const labelRestoreJSON = document.querySelector('label:has(input[onchange*="importFullBackupJSON"])');
+      const btnResetDemo = document.querySelector('button[onclick*="resetDemoData"]');
+
+      if (btnSecurity) btnSecurity.classList.toggle('hidden', !isSuperAdmin);
+      if (btnCloud) btnCloud.classList.toggle('hidden', !isSuperAdmin);
+      if (btnBackupJSON) btnBackupJSON.classList.toggle('hidden', !isSuperAdmin);
+      if (labelRestoreJSON) labelRestoreJSON.classList.toggle('hidden', !isSuperAdmin);
+      if (btnResetDemo) btnResetDemo.classList.toggle('hidden', !isSuperAdmin);
+
+      // Nếu là Thủ thư phụ: kiểm tra và ẩn các Tab không có quyền
+      if (isStaff) {
+        const perms = db.currentUser.permissions || {};
+        const tabMap = {
+          books: document.getElementById('admin-tab-btn-books'),
+          users: document.getElementById('admin-tab-btn-users'),
+          borrows: document.getElementById('admin-tab-btn-borrows'),
+          scanner: document.getElementById('admin-tab-btn-scanner'),
+          stats: document.getElementById('admin-tab-btn-stats')
+        };
+        Object.keys(tabMap).forEach(key => {
+          const btn = tabMap[key];
+          if (btn) btn.classList.toggle('hidden', !perms[key]);
+        });
+
+        // Nút in thẻ thư viện trên header
+        const btnCards = document.querySelector('button[onclick*="openBarcodePrintModal"]');
+        if (btnCards) btnCards.classList.toggle('hidden', !perms.cards);
+
+        // Tự động chuyển đến tab đầu tiên được cấp quyền nếu đang ở tab bị cấm
+        const activePanelKey = ['books', 'users', 'borrows', 'scanner', 'stats'].find(k => {
+          const p = document.getElementById(`admin-tab-${k}`);
+          return p && !p.classList.contains('hidden');
+        });
+        if (activePanelKey && !perms[activePanelKey]) {
+          const firstAllowed = ['scanner', 'borrows', 'books', 'users', 'stats'].find(k => perms[k]);
+          if (firstAllowed) switchAdminTab(firstAllowed);
+        }
+      } else {
+        // Super Admin mở tất cả
+        ['books', 'users', 'borrows', 'scanner', 'stats'].forEach(k => {
+          const btn = document.getElementById(`admin-tab-btn-${k}`);
+          if (btn) btn.classList.remove('hidden');
+        });
+        const btnCards = document.querySelector('button[onclick*="openBarcodePrintModal"]');
+        if (btnCards) btnCards.classList.remove('hidden');
+      }
+    }
+
+    function renderAdminStaffList() {
+      const tbody = document.getElementById('adminStaffTableBody');
+      if (!tbody) return;
+
+      const staffList = db.staffAccounts || [];
+      const totalStaff = staffList.length + 1; // Tính cả Super Admin
+      const activeStaff = 1 + staffList.filter(s => s.status !== 'locked').length;
+      const lockedStaff = staffList.filter(s => s.status === 'locked').length;
+
+      const totalEl = document.getElementById('statTotalStaffCount');
+      if (totalEl) totalEl.textContent = totalStaff;
+      const subEl = document.getElementById('statStaffSubLabel');
+      if (subEl) subEl.textContent = `1 Quản trị trưởng + ${staffList.length} Thủ thư viên`;
+      const activeEl = document.getElementById('statActiveStaffCount');
+      if (activeEl) activeEl.textContent = activeStaff;
+      const lockedEl = document.getElementById('statLockedStaffCount');
+      if (lockedEl) lockedEl.textContent = lockedStaff;
+
+      // Hàng 1: Super Admin (Cố định, không thể xóa)
+      let html = `
+        <tr class="bg-purple-50/40 hover:bg-purple-50/70 transition">
+          <td class="py-3.5 px-4">
+            <div class="flex items-center gap-2">
+              <span class="w-8 h-8 rounded-xl bg-purple-600 text-white font-bold flex items-center justify-center text-xs shadow-xs">
+                <i class="ph-bold ph-crown text-base"></i>
+              </span>
+              <div>
+                <p class="font-bold text-slate-900">${db.adminAccount.fullName || 'Thủ Thư Quản Trị'}</p>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span class="font-mono font-bold text-purple-700 text-xs bg-purple-100 px-1.5 py-0.2 rounded">${db.adminAccount.username || 'ADMIN'}</span>
+                  <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded-full">Quản Trị Trưởng (Toàn quyền)</span>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="py-3.5 px-4 text-xs text-slate-600">
+            <div class="flex items-center gap-1 text-slate-700 font-medium">
+              <i class="ph ph-envelope-simple text-sm text-purple-600"></i> ${db.adminAccount.email || 'Chưa có email'}
+            </div>
+            <div class="flex items-center gap-1 text-slate-500 mt-0.5">
+              <i class="ph ph-shield-check text-sm text-emerald-600"></i> Bảo mật 2FA Email
+            </div>
+          </td>
+          <td class="py-3.5 px-4">
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 text-white shadow-xs">
+              <i class="ph-bold ph-sparkle"></i> Toàn quyền hệ thống (100%)
+            </span>
+          </td>
+          <td class="py-3.5 px-4 text-center">
+            <span class="px-2.5 py-1 text-xs rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Hoạt động</span>
+          </td>
+          <td class="py-3.5 px-4 text-right">
+            <button onclick="openSecurityCenterModal()" class="px-3 py-1.5 rounded-lg bg-white border border-purple-300 hover:bg-purple-100 text-purple-800 text-xs font-bold transition shadow-xs">
+              <i class="ph-bold ph-gear"></i> Đổi MK / 2FA
+            </button>
+          </td>
+        </tr>
+      `;
+
+      // Các hàng tiếp theo: Danh sách Thủ thư phụ
+      staffList.forEach(s => {
+        const p = s.permissions || {};
+        const permBadges = [];
+        if (p.books) permBadges.push('<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">1. Kho Sách</span>');
+        if (p.users) permBadges.push('<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">2. Độc Giả</span>');
+        if (p.borrows) permBadges.push('<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200">3. Mượn/Trả</span>');
+        if (p.scanner) permBadges.push('<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">4. Quầy POS</span>');
+        if (p.cards) permBadges.push('<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">5. In Thẻ A4</span>');
+        if (p.stats) permBadges.push('<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">6. Thống Kê</span>');
+
+        const isActive = s.status !== 'locked';
+
+        html += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3.5 px-4">
+              <div class="flex items-center gap-2">
+                <span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-xs">
+                  <i class="ph-bold ph-user text-base"></i>
+                </span>
+                <div>
+                  <p class="font-bold text-slate-900">${s.fullName}</p>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="font-mono font-bold text-slate-700 text-xs bg-slate-100 px-1.5 py-0.2 rounded">${s.username}</span>
+                    <span class="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">${s.roleTitle || 'Thủ thư viên'}</span>
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="py-3.5 px-4 text-xs text-slate-600">
+              <div class="flex items-center gap-1 text-slate-700">
+                <i class="ph ph-envelope-simple text-sm text-slate-400"></i> ${s.email || 'Chưa cập nhật email'}
+              </div>
+              <div class="flex items-center gap-1 text-slate-500 mt-0.5">
+                <i class="ph ph-phone text-sm text-slate-400"></i> ${s.phone || '---'}
+              </div>
+            </td>
+            <td class="py-3.5 px-4">
+              <div class="flex flex-wrap items-center gap-1 max-w-sm">
+                ${permBadges.length > 0 ? permBadges.join('') : '<span class="text-[11px] text-slate-400 italic">Chưa cấp quyền nào</span>'}
+              </div>
+            </td>
+            <td class="py-3.5 px-4 text-center">
+              <span class="px-2.5 py-1 text-xs rounded-full font-bold ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}">
+                ${isActive ? 'Hoạt động' : 'Tạm khóa'}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-right space-x-1.5">
+              <button onclick="openStaffModal(${s.id})" class="px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold transition">
+                <i class="ph-bold ph-pencil-simple"></i> Sửa/Quyền
+              </button>
+              <button onclick="toggleStaffLock(${s.id})" class="px-2.5 py-1.5 rounded-lg ${isActive ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'} text-xs font-bold transition">
+                ${isActive ? 'Khóa' : 'Mở'}
+              </button>
+              <button onclick="deleteStaffAccount(${s.id})" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold transition">
+                <i class="ph-bold ph-trash"></i> Xóa
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function openStaffModal(staffId = null) {
+      const modal = document.getElementById('staffFormModal');
+      const titleEl = document.getElementById('staffFormModalTitle');
+      const idInput = document.getElementById('staffEditId');
+      const userInput = document.getElementById('staffInputUsername');
+      const passInput = document.getElementById('staffInputPassword');
+      const nameInput = document.getElementById('staffInputFullName');
+      const roleInput = document.getElementById('staffInputRoleTitle');
+      const emailInput = document.getElementById('staffInputEmail');
+      const phoneInput = document.getElementById('staffInputPhone');
+
+      if (!staffId) {
+        titleEl.textContent = 'Thêm Tài Khoản Thủ Thư Mới';
+        idInput.value = '';
+        userInput.value = '';
+        userInput.readOnly = false;
+        passInput.value = '123456';
+        nameInput.value = '';
+        roleInput.value = 'Thủ thư viên';
+        emailInput.value = '';
+        phoneInput.value = '';
+        setCounterStaffPermsPreset();
+      } else {
+        const s = (db.staffAccounts || []).find(x => x.id === staffId);
+        if (!s) return;
+        titleEl.textContent = `Chỉnh Sửa & Phân Quyền: ${s.fullName}`;
+        idInput.value = s.id;
+        userInput.value = s.username;
+        userInput.readOnly = true;
+        passInput.value = '********';
+        nameInput.value = s.fullName;
+        roleInput.value = s.roleTitle || 'Thủ thư viên';
+        emailInput.value = s.email || '';
+        phoneInput.value = s.phone || '';
+
+        const p = s.permissions || {};
+        ['books', 'users', 'borrows', 'scanner', 'cards', 'stats'].forEach(k => {
+          const chk = document.getElementById(`perm_${k}`);
+          if (chk) chk.checked = Boolean(p[k]);
+        });
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeStaffModal() {
+      const modal = document.getElementById('staffFormModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function setAllStaffPerms(val) {
+      ['books', 'users', 'borrows', 'scanner', 'cards', 'stats'].forEach(k => {
+        const chk = document.getElementById(`perm_${k}`);
+        if (chk) chk.checked = Boolean(val);
+      });
+    }
+
+    function setCounterStaffPermsPreset() {
+      ['books', 'users', 'cards', 'stats'].forEach(k => {
+        const chk = document.getElementById(`perm_${k}`);
+        if (chk) chk.checked = false;
+      });
+      ['borrows', 'scanner'].forEach(k => {
+        const chk = document.getElementById(`perm_${k}`);
+        if (chk) chk.checked = true;
+      });
+    }
+
+    async function saveStaffForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('staffEditId').value;
+      const username = sanitizeText(document.getElementById('staffInputUsername').value.trim());
+      const rawPassword = document.getElementById('staffInputPassword').value.trim();
+      const fullName = sanitizeText(document.getElementById('staffInputFullName').value.trim());
+      const roleTitle = sanitizeText(document.getElementById('staffInputRoleTitle').value.trim()) || 'Thủ thư viên';
+      const email = sanitizeText(document.getElementById('staffInputEmail').value.trim());
+      const phone = sanitizeText(document.getElementById('staffInputPhone').value.trim());
+
+      const permissions = {
+        books: Boolean(document.getElementById('perm_books')?.checked),
+        users: Boolean(document.getElementById('perm_users')?.checked),
+        borrows: Boolean(document.getElementById('perm_borrows')?.checked),
+        scanner: Boolean(document.getElementById('perm_scanner')?.checked),
+        cards: Boolean(document.getElementById('perm_cards')?.checked),
+        stats: Boolean(document.getElementById('perm_stats')?.checked)
+      };
+
+      if (!db.staffAccounts) db.staffAccounts = [];
+
+      if (!id) {
+        // Kiểm tra trùng username
+        if (username.toUpperCase() === String(db.adminAccount.username || 'ADMIN').toUpperCase()) {
+          showNoticeModal('Tên đăng nhập đã tồn tại', 'Tên đăng nhập này trùng với Quản trị trưởng (Super Admin)!');
+          return;
+        }
+        if (db.staffAccounts.some(s => s.username.toUpperCase() === username.toUpperCase())) {
+          showNoticeModal('Tên đăng nhập đã tồn tại', 'Đã có thủ thư sử dụng tên đăng nhập này!');
+          return;
+        }
+
+        const newStaff = {
+          id: Date.now(),
+          username,
+          password: hashPassword(rawPassword || '123456'),
+          fullName,
+          roleTitle,
+          email,
+          phone,
+          status: 'active',
+          permissions
+        };
+        db.staffAccounts.push(newStaff);
+        showToast(`Đã tạo tài khoản thủ thư ${fullName} thành công!`);
+      } else {
+        const idx = db.staffAccounts.findIndex(s => s.id === Number(id));
+        if (idx > -1) {
+          const old = db.staffAccounts[idx];
+          const keepOldPass = rawPassword === '********';
+          db.staffAccounts[idx] = {
+            ...old,
+            fullName,
+            roleTitle,
+            email,
+            phone,
+            permissions,
+            password: keepOldPass ? old.password : hashPassword(rawPassword)
+          };
+          showToast(`Đã cập nhật thông tin và phân quyền cho ${fullName}!`);
+        }
+      }
+
+      await saveDB('settings');
+      closeStaffModal();
+      renderAdminStaffList();
+    }
+
+    async function toggleStaffLock(staffId) {
+      const s = (db.staffAccounts || []).find(x => x.id === staffId);
+      if (!s) return;
+      s.status = s.status === 'active' ? 'locked' : 'active';
+      await saveDB('settings');
+      renderAdminStaffList();
+      showToast(`Đã ${s.status === 'active' ? 'mở khóa' : 'tạm khóa'} tài khoản ${s.fullName}!`);
+    }
+
+    function deleteStaffAccount(staffId) {
+      const s = (db.staffAccounts || []).find(x => x.id === staffId);
+      if (!s) return;
+
+      openCustomConfirmDialog(
+        'Xóa tài khoản thủ thư',
+        `Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản thủ thư của "${s.fullName}" (${s.username}) khỏi hệ thống?`,
+        async () => {
+          db.staffAccounts = (db.staffAccounts || []).filter(x => x.id !== staffId);
+          await saveDB('settings');
+          renderAdminStaffList();
+          showToast(`Đã xóa tài khoản thủ thư ${s.fullName}!`);
+        }
+      );
+    }
     // ==================== VISUAL DESIGN EDITOR SCRIPT ====================
     let isVisualEditMode = false;
     function toggleVisualEditText() {
@@ -5813,11 +6382,11 @@ async function sendOverdueEmail(id) {
     // ==================== QUẢN TRỊ BẢO MẬT CẤP ĐỘ 1 (SECURITY CENTER) ====================
     function openSecurityCenterModal() {
       if (!db.currentUser || db.currentUser.role !== 'admin' || !verifySessionIntegrity(db.currentUser, db)) {
-        showNoticeModal('Từ chối truy cập', 'Chỉ Thủ thư (Admin) hợp lệ mới có quyền mở Trung tâm Bảo mật!');
+        showNoticeModal('Từ chối truy cập', 'Chỉ Admin hợp lệ mới có quyền mở Trung tâm Bảo mật!');
         return;
       }
       document.getElementById('secAdminUsername').value = db.adminAccount.username || 'ADMIN';
-      document.getElementById('secAdminFullName').value = db.adminAccount.fullName || 'Thủ Thư Quản Trị';
+      document.getElementById('secAdminFullName').value = db.adminAccount.fullName || 'Quản Trị';
       document.getElementById('secAdminEmail').value = db.adminAccount.email || 'longnv@pct.edu.vn';
       document.getElementById('secAdminCurrentPass').value = '';
       document.getElementById('secAdminNewPass').value = '';
@@ -5918,7 +6487,7 @@ async function sendOverdueEmail(id) {
       }
 
       db.adminAccount.username = newUsername || 'ADMIN';
-      db.adminAccount.fullName = newFullName || 'Thủ Thư Quản Trị';
+      db.adminAccount.fullName = newFullName || 'Quản Trị';
       db.adminAccount.email = newEmail || 'longnv@pct.edu.vn';
       db.adminAccount.password = hashPassword(newPass);
 
@@ -6069,7 +6638,7 @@ async function sendOverdueEmail(id) {
       const nowStr = new Date().toLocaleString('vi-VN');
       const templateParams = {
         to_email: targetEmail,
-        reader_name: `${db.adminAccount.fullName || 'Thủ thư Admin'} (Xác thực 2 lớp 2FA)`,
+        reader_name: `${db.adminAccount.fullName || 'Admin'} (Xác thực 2 lớp 2FA)`,
         ticket_code: `OTP-${otpCode}`,
         status_label: `MÃ XÁC THỰC ĐĂNG NHẬP ADMIN: ${otpCode}`,
         book_title: `Mã bảo mật 2 lớp (2FA OTP): ${otpCode}`,
@@ -6217,7 +6786,7 @@ async function sendOverdueEmail(id) {
       });
       closeAuthModal();
       switchView('admin-dashboard');
-      showToast('Xác thực bảo mật 2 lớp (2FA) thành công! Chào mừng Thủ thư.');
+      showToast('Xác thực bảo mật 2 lớp (2FA) thành công! Chào mừng Admin.');
     }
 
     async function toggleAdminTwoFactor() {
@@ -6261,6 +6830,7 @@ async function sendOverdueEmail(id) {
       renderAdminUsers();
       renderAdminBorrows();
       renderPosScannerStation();
+      updateAdminUIPermissions();
 
       // --- BỔ SUNG: Cập nhật thống kê Footer tự động ---
       if (document.getElementById('footerStatUsers')) {
