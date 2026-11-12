@@ -1,0 +1,18 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Chạy tự động lúc 02:00 UTC (tức 09:00 sáng giờ Việt Nam) mỗi ngày
+    - cron: '0 2 * * *'
+  # Cho phép bấm nút chạy kiểm tra thủ công bất cứ lúc nào
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query smartlib_cloud table
+        run: |
+          curl -fsS "${{ secrets.SUPABASE_URL }}/rest/v1/smartlib_cloud?select=collection_key&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
