@@ -6764,24 +6764,24 @@ async function sendOverdueEmail(id) {
                       </div>
 
                       <!-- Thông tin bạn đọc -->
-                      <div class="min-w-0 flex-1 space-y-1">
+                      <div class="min-w-0 flex-1 space-y-1 text-black">
                         <div>
-                          <span class="text-[7.5px] text-slate-400 uppercase font-black block leading-none">Họ và tên bạn đọc:</span>
-                          <h4 class="text-[12px] font-black text-slate-900 uppercase truncate mt-1 pt-0.5 leading-normal">${u.fullName}</h4>
+                          <span class="text-[7.5px] text-black uppercase font-semibold block leading-none">Họ và tên bạn đọc:</span>
+                          <h4 class="text-[12px] font-black text-black uppercase truncate mt-1 pt-0.5 leading-normal">${u.fullName}</h4>
                         </div>
                         <div class="grid grid-cols-2 gap-1 text-[9px]">
                           <div>
-                            <span class="text-slate-400 block text-[7.5px] leading-none">Lớp / Tổ:</span>
-                            <strong class="text-blue-950 font-bold text-[10.5px]">${u.group}</strong>
+                            <span class="text-black block text-[7.5px] leading-none">Lớp / Tổ:</span>
+                            <strong class="text-black font-bold text-[10.5px]">${u.group}</strong>
                           </div>
                           <div>
-                            <span class="text-slate-400 block text-[7.5px] leading-none">Mã số thẻ:</span>
-                            <strong class="font-mono font-bold text-indigo-700 text-[10.5px]">${u.cardCode}</strong>
+                            <span class="text-black block text-[7.5px] leading-none">Mã số thẻ:</span>
+                            <strong class="font-mono font-bold text-black text-[10.5px]">${u.cardCode}</strong>
                           </div>
                         </div>
-                        <div class="pt-0.5 border-t border-slate-100 flex items-center justify-between text-[7.5px] text-slate-500">
+                        <div class="pt-0.5 border-t border-slate-300 flex items-center justify-between text-[7.5px] text-black">
                           <span>${getUserType(u) === 'teacher' ? 'Đối tượng: <strong>Cán bộ / GV</strong>' : `Niên khóa: <strong>${getUserCohort(u, currentYear)}</strong>`}</span>
-                          <span class="text-[7px] text-emerald-700 font-bold uppercase">Có giá trị toàn trường</span>
+                          <span class="text-[7px] text-black font-bold uppercase">Có giá trị toàn trường</span>
                         </div>
                       </div>
                     </div>
