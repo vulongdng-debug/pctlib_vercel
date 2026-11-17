@@ -2704,6 +2704,7 @@
             finePerDay: db.finePerDay,
             productionMode: Boolean(db.productionMode),
             adminAccount: db.adminAccount,
+            staffAccounts: db.staffAccounts || [],
             books: db.books,
             users: db.users,
             borrows: db.borrows
@@ -3978,25 +3979,29 @@ let pendingFirstLoginUser = null;
       showToast(`Đã xuất ${targetBooks.length} đầu sách đã chọn ra file Excel!`);
     }
 
-    function deleteSelectedAdminBooks() {
-      const count = selectedAdminBookIds.size;
+    function deleteSelectedAdminUsers() {
+      const count = selectedAdminUserIds.size;
       if (count === 0) {
-        showNoticeModal('Chưa chọn sách', 'Vui lòng tích chọn ít nhất 1 đầu sách cần xóa!');
+        showNoticeModal('Chưa chọn độc giả', 'Vui lòng tích chọn ít nhất 1 độc giả cần xóa!');
+        return;
+      }
+      const busyUsers = db.users.filter(u => selectedAdminUserIds.has(Number(u.id)) && db.borrows.some(br => br.userId === u.id && (br.status === 'borrowing' || br.status === 'pending')));
+      if (busyUsers.length > 0) {
+        showNoticeModal('Độc giả đang giữ sách', `Có ${busyUsers.length} độc giả trong danh sách chọn hiện còn sách đang mượn chưa trả (VD: ${busyUsers[0].fullName}). Vui lòng thu hồi sách trước khi xóa!`);
         return;
       }
       openCustomConfirmDialog(
-        'Xác nhận xóa sách hàng loạt',
-        `Bạn có chắc chắn muốn xóa vĩnh viễn ${count} đầu sách đã chọn khỏi danh mục thư viện? Thao tác này không thể hoàn tác!`,
+        'Xác nhận xóa hàng loạt',
+        `Bạn có chắc chắn muốn xóa vĩnh viễn ${count} độc giả đã chọn khỏi hệ thống thư viện? Thao tác này không thể hoàn tác!`,
         async () => {
-          db.books = db.books.filter(b => !selectedAdminBookIds.has(Number(b.id)));
-          selectedAdminBookIds.clear();
-          await saveDB('books');
-          updateAdminBookSelectionUI();
-          showToast(`Đã xóa thành công ${count} đầu sách khỏi hệ thống!`);
+          db.users = db.users.filter(u => !selectedAdminUserIds.has(Number(u.id)));
+          selectedAdminUserIds.clear();
+          await saveDB('users');
+          updateAdminUserSelectionUI();
+          showToast(`Đã xóa thành công ${count} độc giả khỏi hệ thống!`);
         }
       );
     }
-
     function changeAdminBookPage(delta) {
       adminBookPage += delta;
       renderAdminBooks();
