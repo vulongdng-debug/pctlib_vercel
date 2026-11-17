@@ -2484,20 +2484,25 @@
         .replace(/[<>]/g, c => (c === '<' ? '‹' : '›'));
     }
 
-    // Chữ ký phiên đăng nhập chống sửa quyền role='admin' qua F12
+    // Chữ ký phiên đăng nhập chống sửa quyền role='admin' hoặc nâng quyền Thủ thư qua F12
     function computeSessionSignature(userObj, dbRef) {
       const targetDb = dbRef || db;
       if (!userObj || !targetDb) return '';
       if (userObj.role === 'admin') {
+        if (userObj.isStaff) {
+          const staff = (targetDb.staffAccounts || []).find(s => s.id === userObj.staffId || String(s.username).toUpperCase() === String(userObj.username).toUpperCase());
+          if (!staff || staff.status === 'locked') return 'INVALID_STAFF_SIG';
+          const permStr = JSON.stringify(staff.permissions || {});
+          return sha256Hex(`SIG_STAFF::${staff.username}::${hashPassword(staff.password)}::${permStr}`);
+        }
         const adminPassHash = hashPassword(targetDb.adminAccount?.password || 'admin123');
-        return sha256Hex(`SIG_ADMIN::${targetDb.adminAccount?.username || 'ADMIN'}::${adminPassHash}`);
+        return sha256Hex(`SIG_SUPER_ADMIN::${targetDb.adminAccount?.username || 'ADMIN'}::${adminPassHash}`);
       } else {
         const found = (targetDb.users || []).find(u => u.id === userObj.id || u.cardCode === userObj.cardCode);
         const readerPassHash = hashPassword(found ? found.password : '123456');
         return sha256Hex(`SIG_READER::${userObj.cardCode}::${readerPassHash}`);
       }
     }
-
     function verifySessionIntegrity(userObj, dbRef) {
       if (!userObj) return null;
       const expectedSig = computeSessionSignature(userObj, dbRef);
@@ -2596,12 +2601,12 @@
     async function saveDB(changedSection = 'ALL') {
       migrateSecurityDB(db);
       const toStore = {
-      currentSchoolYear: db.currentSchoolYear,
-      finePerDay: db.finePerDay,
-      productionMode: Boolean(db.productionMode),
-      adminAccount: db.adminAccount,
-      staffAccounts: db.staffAccounts || [],
-      books: db.books,
+        currentSchoolYear: db.currentSchoolYear,
+        finePerDay: db.finePerDay,
+        productionMode: Boolean(db.productionMode),
+        adminAccount: db.adminAccount,
+        staffAccounts: db.staffAccounts || [],
+        books: db.books,
         users: db.users,
         borrows: db.borrows
       };
@@ -4559,26 +4564,22 @@ let pendingFirstLoginUser = null;
     }
 
 function deleteBook(id) {
-   const b = db.books.find(x => x.id === id);
-   if (!b) return;
-   const activeBorrows = db.borrows.filter(x => x.bookId === id && (x.status === 'borrowing' || x.status === 'pending'));
-   if (activeBorrows.length > 0) {
-     showNoticeModal(
-       'Không thể xóa sách đang cho mượn',
-       `Đầu sách "${b.title}" hiện đang có ${activeBorrows.length} phiếu mượn chưa hoàn trả! Vui lòng thu hồi sách hoặc xử lý phiếu mượn trước khi xóa.`
-     );
-     return;
-   }
-   openCustomConfirmDialog(
-     'Xóa đầu sách',
-     `Bạn có chắc chắn muốn xóa sách "${b.title}" (${b.code}) khỏi danh mục?`,
-     async () => {
-       db.books = db.books.filter(x => x.id !== id);
-       await saveDB('books');
-       showToast('Đã xóa đầu sách.');
-     }
-   );
- }
+      const b = db.books.find(x => x.id === id);
+      const activeCount = db.borrows.filter(br => br.bookId === id && (br.status === 'borrowing' || br.status === 'pending')).length;
+      if (activeCount > 0) {
+        showNoticeModal('Không thể xóa sách', `Đầu sách "${b ? b.title : ''}" hiện đang có ${activeCount} phiếu đang mượn hoặc chờ duyệt. Vui lòng thu hồi sách trước khi xóa!`);
+        return;
+      }
+      openCustomConfirmDialog(
+        'Xóa đầu sách',
+        `Bạn có chắc chắn muốn xóa sách "${b ? b.title : ''}" khỏi danh mục?`,
+        async () => {
+          db.books = db.books.filter(x => x.id !== id);
+          await saveDB('books');
+          showToast('Đã xóa đầu sách.');
+        }
+      );
+    }
     function openUserModal(id = null) {
       document.getElementById('userFormModal').classList.remove('hidden');
       const defaultYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
@@ -4672,27 +4673,23 @@ function deleteBook(id) {
       showToast(`Đã đổi trạng thái thẻ ${u.cardCode}`);
     }
 
-    function deleteUser(id) {
-   const u = db.users.find(x => x.id === id);
-   if (!u) return;
-   const activeBorrows = db.borrows.filter(x => x.userId === id && (x.status === 'borrowing' || x.status === 'pending'));
-   if (activeBorrows.length > 0) {
-     showNoticeModal(
-       'Độc giả đang giữ sách',
-       `Bạn đọc "${u.fullName}" (${u.cardCode}) hiện đang giữ ${activeBorrows.length} cuốn sách chưa trả! Vui lòng thu hồi sách trước khi xóa thẻ.`
-     );
-     return;
-   }
-   openCustomConfirmDialog(
-     'Xóa thẻ độc giả',
-     `Xóa độc giả "${u.fullName}" (${u.cardCode}) khỏi hệ thống?`,
-     async () => {
-       db.users = db.users.filter(x => x.id !== id);
-       await saveDB('users');
-       showToast('Đã xóa độc giả.');
-     }
-   );
- }
+   function deleteUser(id) {
+      const u = db.users.find(x => x.id === id);
+      const activeCount = db.borrows.filter(br => br.userId === id && (br.status === 'borrowing' || br.status === 'pending')).length;
+      if (activeCount > 0) {
+        showNoticeModal('Độc giả đang giữ sách', `Độc giả "${u ? u.fullName : ''}" hiện còn ${activeCount} cuốn sách đang mượn/chờ duyệt chưa hoàn trả. Vui lòng thu hồi sách trước khi xóa thẻ!`);
+        return;
+      }
+      openCustomConfirmDialog(
+        'Xóa thẻ độc giả',
+        `Xóa độc giả "${u ? u.fullName : ''}" (${u ? u.cardCode : ''}) khỏi hệ thống?`,
+        async () => {
+          db.users = db.users.filter(x => x.id !== id);
+          await saveDB('users');
+          showToast('Đã xóa độc giả.');
+        }
+      );
+    }
 
 // ==================== XỬ LÝ DUYỆT / TRẢ SÁCH (CÓ THÔNG BÁO EMAIL) ====================
     const EMAILJS_CONFIG = {
