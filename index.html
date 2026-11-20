@@ -744,12 +744,23 @@
               <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
               <input type="text" id="adminBorrowSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="renderAdminBorrows()" placeholder="Tìm mã phiếu, độc giả, sách..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-500" />
             </div>
-            <select id="adminBorrowFilter" onchange="renderAdminBorrows()" class="px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-medium">
-              <option value="ALL">Tất cả phiếu mượn</option>
+            <select id="adminBorrowFilter" onchange="renderAdminBorrows()" class="px-3.5 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-medium">
+              <option value="ALL">Tất cả trạng thái</option>
               <option value="pending">Chờ duyệt Online</option>
               <option value="borrowing">Đang mượn</option>
               <option value="overdue">Quá hạn (Có phạt)</option>
               <option value="returned">Đã hoàn trả</option>
+            </select>
+            <select id="adminBorrowTargetFilter" onchange="onBorrowTargetFilterChange()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-indigo-700 bg-white">
+              <option value="ALL">Tất cả (HS & GV)</option>
+              <option value="student">🎓 Học sinh (Mọi khối)</option>
+              <option value="10">🎓 Học sinh Khối 10</option>
+              <option value="11">🎓 Học sinh Khối 11</option>
+              <option value="12">🎓 Học sinh Khối 12</option>
+              <option value="teacher">👨‍🏫 Giáo viên / Cán bộ</option>
+            </select>
+            <select id="adminBorrowGroupFilter" onchange="renderAdminBorrows()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-blue-700 bg-white">
+              <option value="ALL">-- Tất cả Lớp / Tổ --</option>
             </select>
             <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-xs">
               <span class="font-semibold text-amber-800">Mức phạt trễ hạn (VNĐ/ngày):</span>
@@ -4291,30 +4302,84 @@ let pendingFirstLoginUser = null;
       renderAdminUsers();
     }
 
-    function renderAdminBorrows() {
+    function onBorrowTargetFilterChange() {
+      populateBorrowGroupFilter(true);
+      renderAdminBorrows();
+    }
+
+    function populateBorrowGroupFilter(resetGroup = false) {
+      const groupSel = document.getElementById('adminBorrowGroupFilter');
+      const targetSel = document.getElementById('adminBorrowTargetFilter');
+      if (!groupSel) return;
+
+      const target = targetSel ? targetSel.value : 'ALL';
+      const currentYear = db.currentSchoolYear || '2026-2027';
+      const groupsSet = new Set();
+
+      db.users.forEach(u => {
+        const matchYear = currentYear === 'ALL' || (u.schoolYear || '2026-2027') === currentYear;
+        if (!matchYear || !u.group) return;
+        const isTeacher = getUserType(u) === 'teacher';
+        if (target === 'teacher' && !isTeacher) return;
+        if (target === 'student' && isTeacher) return;
+        if (['10', '11', '12'].includes(target) && getUserGradeLevel(u) !== target) return;
+        groupsSet.add(u.group.trim());
+      });
+
+      const sortedGroups = Array.from(groupsSet).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }));
+      const prevVal = resetGroup ? 'ALL' : (groupSel.value || 'ALL');
+      const defaultLabel = target === 'teacher'
+        ? '-- Tất cả Tổ chuyên môn --'
+        : (['10', '11', '12', 'student'].includes(target) ? '-- Tất cả các Lớp --' : '-- Tất cả Lớp / Tổ --');
+
+      groupSel.innerHTML = `<option value="ALL">${defaultLabel}</option>` + sortedGroups.map(g => {
+        const isTeacherOnly = target === 'teacher';
+        const label = isTeacherOnly ? `Tổ ${g}` : g;
+        return `<option value="${g}" ${g === prevVal ? 'selected' : ''}>${label}</option>`;
+      }).join('');
+    }
+
+    function getFilteredAdminBorrows() {
       const filter = document.getElementById('adminBorrowFilter')?.value || 'ALL';
+      const target = document.getElementById('adminBorrowTargetFilter')?.value || 'ALL';
+      const groupVal = document.getElementById('adminBorrowGroupFilter')?.value || 'ALL';
       let q = (document.getElementById('adminBorrowSearch')?.value || '').toLowerCase().trim();
       if (q === 'null' || q === 'undefined') q = '';
       const currentYear = db.currentSchoolYear || '2026-2027';
 
-      const list = db.borrows.filter(b => {
+      return db.borrows.filter(b => {
         const matchYear = currentYear === 'ALL' || (b.schoolYear || '2026-2027') === currentYear;
         if (!matchYear) return false;
         if (filter !== 'ALL') {
           if (filter === 'overdue' && !isOverdue(b)) return false;
           if (filter !== 'overdue' && b.status !== filter) return false;
         }
+
+        const user = db.users.find(u => u.id === b.userId);
+        if (target !== 'ALL' || groupVal !== 'ALL') {
+          if (!user) return false;
+          const isTeacher = getUserType(user) === 'teacher';
+          if (target === 'teacher' && !isTeacher) return false;
+          if (target === 'student' && isTeacher) return false;
+          if (['10', '11', '12'].includes(target) && getUserGradeLevel(user) !== target) return false;
+          if (groupVal !== 'ALL' && String(user.group || '').trim().toLowerCase() !== groupVal.toLowerCase()) return false;
+        }
+
         if (!q) return true;
-        const user = db.users.find(u => u.id === b.userId) || {};
+        const uObj = user || {};
         const book = db.books.find(x => x.id === b.bookId) || {};
         return String(b.ticketCode || '').toLowerCase().includes(q) ||
-               String(user.fullName || '').toLowerCase().includes(q) ||
-               String(user.cardCode || '').toLowerCase().includes(q) ||
-               String(user.group || '').toLowerCase().includes(q) ||
+               String(uObj.fullName || '').toLowerCase().includes(q) ||
+               String(uObj.cardCode || '').toLowerCase().includes(q) ||
+               String(uObj.group || '').toLowerCase().includes(q) ||
                String(book.title || '').toLowerCase().includes(q) ||
                String(book.code || '').toLowerCase().includes(q);
       });
+    }
 
+    function renderAdminBorrows() {
+      populateBorrowGroupFilter(false);
+      const list = getFilteredAdminBorrows();
       document.getElementById('adminBorrowTableBody').innerHTML = list.map(b => {
         const user = db.users.find(u => u.id === b.userId) || { fullName: 'Độc giả đã xóa', cardCode: '---' };
         const book = db.books.find(x => x.id === b.bookId) || { title: 'Sách đã xóa', code: '---' };
@@ -5231,33 +5296,13 @@ async function sendOverdueEmail(id) {
       showToast(`Đã xuất thành công ${targetUsers.length} độc giả ra tệp ${fileName}!`);
     }
     function exportBorrowsExcel() {
-   if (!window.XLSX) return;
-   const filter = document.getElementById('adminBorrowFilter')?.value || 'ALL';
-   let q = (document.getElementById('adminBorrowSearch')?.value || '').toLowerCase().trim();
-   const currentYear = db.currentSchoolYear || '2026-2027';
-
-   const list = db.borrows.filter(b => {
-     const matchYear = currentYear === 'ALL' || (b.schoolYear || '2026-2027') === currentYear;
-     if (!matchYear) return false;
-     if (filter !== 'ALL') {
-       if (filter === 'overdue' && !isOverdue(b)) return false;
-       if (filter !== 'overdue' && b.status !== filter) return false;
+       if (!window.XLSX) return;
+       const filter = document.getElementById('adminBorrowFilter')?.value || 'ALL';
+       const list = getFilteredAdminBorrows();
+       if (list.length === 0) {
+         showNoticeModal('Không có dữ liệu', 'Không có phiếu mượn nào khớp với bộ lọc hiện tại để xuất Excel!');
+         return;
      }
-     if (!q) return true;
-     const user = db.users.find(u => u.id === b.userId) || {};
-     const book = db.books.find(x => x.id === b.bookId) || {};
-     return String(b.ticketCode || '').toLowerCase().includes(q) ||
-            String(user.fullName || '').toLowerCase().includes(q) ||
-            String(user.cardCode || '').toLowerCase().includes(q) ||
-            String(user.group || '').toLowerCase().includes(q) ||
-            String(book.title || '').toLowerCase().includes(q) ||
-            String(book.code || '').toLowerCase().includes(q);
-   });
-
-   if (list.length === 0) {
-     showNoticeModal('Không có dữ liệu', 'Không có phiếu mượn nào khớp với bộ lọc hiện tại để xuất Excel!');
-     return;
-   }
 
    const rows = list.map((b, idx) => {
      const user = db.users.find(u => u.id === b.userId) || {};
