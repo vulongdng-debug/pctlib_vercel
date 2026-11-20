@@ -3541,7 +3541,6 @@ let pendingFirstLoginUser = null;
       renderBarcodeSvg('#profileBarcodeSvg', activeReader.cardCode, { height: 42, fontSize: 12, margin: 2 });
       document.getElementById('profileEmail').textContent = activeReader.email || 'Chưa cập nhật Email';
       document.getElementById('profilePhone').textContent = activeReader.phone || 'Chưa cập nhật SĐT';
-      document.getElementById('readerFineRateLabel').textContent = (db.finePerDay || 5000).toLocaleString('vi-VN');
 
       const myBorrows = db.borrows.filter(b => b.userId === activeReader.id);
       const activeCount = myBorrows.filter(b => b.status === 'borrowing' || b.status === 'pending').length;
@@ -3855,7 +3854,7 @@ let pendingFirstLoginUser = null;
       const activeBorrows = activeBorrowsList.filter(b => b.status === 'borrowing' || b.status === 'pending').length;
       const pendingBorrows = activeBorrowsList.filter(b => b.status === 'pending').length;
       const overdueBorrows = activeBorrowsList.filter(b => isOverdue(b)).length;
-      const totalFine = activeBorrowsList.reduce((sum, b) => sum + calculateFine(b), 0);
+      
 
       document.getElementById('statTotalBooks').textContent = `${totalTitles} / ${totalCopies}`;
       document.getElementById('statAvailableBooks').textContent = `Còn ${availCopies} bản sẵn sàng`;
@@ -4439,7 +4438,7 @@ let pendingFirstLoginUser = null;
             </td>
             <td class="py-3.5 px-4 text-xs text-slate-600">${b.borrowDate} → <strong>${b.dueDate}</strong></td>
             <td class="py-3.5 px-4">${statusBadge}</td>
-            <td class="py-3.5 px-4 font-bold ${fine > 0 ? 'text-rose-600' : 'text-slate-400'}">${fine > 0 ? fine.toLocaleString('vi-VN') + 'đ' : '0đ'}</td>
+            <td class="py-3.5 px-4 font-bold ${overdueDays > 0 ? 'text-rose-600' : 'text-slate-400'}">${overdueDays > 0 ? 'Trễ ' + overdueDays + ' ngày' : 'Đúng hạn'}</td>
             <td class="py-3.5 px-4 text-right">${actionBtns}</td>
           </tr>
         `;
@@ -4455,7 +4454,7 @@ let pendingFirstLoginUser = null;
 
       const user = db.users.find(u => u.id === b.userId) || { fullName: 'Độc giả đã xóa', cardCode: '---', group: '---', email: '', phone: '' };
       const book = db.books.find(x => x.id === b.bookId) || { title: 'Sách đã xóa', code: '---', category: '---', shelf: '---' };
-      const fine = calculateFine(b);
+      const overdueDays = getOverdueDays(b);
       const isTeacher = getUserType(user) === 'teacher';
 
       document.getElementById('detailBorrowTicketCode').textContent = b.ticketCode;
@@ -4469,9 +4468,9 @@ let pendingFirstLoginUser = null;
       } else if (b.status === 'returned') {
         badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
         badge.textContent = `Đã hoàn trả (${b.returnDate || ''})`;
-      } else if (fine > 0) {
+      } else if (isOverdue(b)) {
         badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-400/30';
-        badge.textContent = 'Quá hạn';
+        badge.textContent = overdueDays > 0 ? `Quá hạn (${overdueDays} ngày)` : 'Quá hạn';
       } else {
         badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30';
         badge.textContent = 'Đang mượn';
@@ -6512,7 +6511,7 @@ async function sendOverdueEmail(id) {
                 <div class="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
                   ${readerBorrows.map(b => {
                     const bk = db.books.find(x => x.id === b.bookId) || { title: 'Sách đã xóa', code: '---' };
-                    const fine = calculateFine(b);
+                    
                     return `
                       <div class="p-3 bg-white hover:bg-slate-50 flex flex-wrap items-center justify-between gap-2 text-xs">
                         <div>
