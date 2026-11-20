@@ -414,12 +414,12 @@
 
           <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-500 uppercase">Phí phạt tạm tính</span>
-              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><i class="ph-bold ph-coins text-lg"></i></div>
+              <span class="text-xs font-semibold text-slate-500 uppercase">Sách đã hoàn trả</span>
+              <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="ph-bold ph-check-circle text-lg"></i></div>
             </div>
             <div class="mt-4">
-              <h4 id="readerStatFine" class="text-2xl font-bold text-slate-800">0đ</h4>
-              <p class="text-xs text-slate-500 mt-1">Đơn giá: <span id="readerFineRateLabel">5,000</span>đ/ngày trễ</p>
+              <h4 id="readerStatReturned" class="text-3xl font-bold text-emerald-600">0</h4>
+              <p class="text-xs text-slate-500 mt-1">Lịch sử đã trả đầy đủ</p>
             </div>
           </div>
         </div>
@@ -430,7 +430,7 @@
         <div class="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 class="font-bold text-slate-800 text-base">Lịch sử Đăng ký & Mượn/Trả sách cá nhân</h3>
-            <p class="text-xs text-slate-500">Theo dõi các phiếu đặt mượn online, hạn trả sách và phí phạt (nếu có)</p>
+            <p class="text-xs text-slate-500">Theo dõi các phiếu đặt mượn online và hạn trả sách</p>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="syncFromCloud(true)" class="px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl transition flex items-center gap-1.5">
@@ -450,7 +450,7 @@
                 <th class="py-3.5 px-4">Ngày đăng ký/mượn</th>
                 <th class="py-3.5 px-4">Hạn trả</th>
                 <th class="py-3.5 px-4">Trạng thái</th>
-                <th class="py-3.5 px-4">Phí quá hạn</th>
+                <th class="py-3.5 px-4">Tình trạng hạn</th>
                 <th class="py-3.5 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
@@ -521,9 +521,9 @@
         </div>
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p class="text-xs font-medium text-slate-500">Quá hạn & Tổng phí phạt</p>
+            <p class="text-xs font-medium text-slate-500">Phiếu quá hạn trả</p>
             <h3 id="statOverdueCount" class="text-2xl font-bold text-rose-600 mt-1">0 phiếu</h3>
-            <span class="text-xs font-semibold text-rose-600" id="statTotalFine">Phạt: 0đ</span>
+            <span class="text-xs font-medium text-slate-500" id="statTotalFine">Cần nhắc nhở hoàn trả</span>
           </div>
           <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl"><i class="ph-duotone ph-bell-ringing"></i></div>
         </div>
@@ -538,7 +538,7 @@
           <i class="ph-bold ph-student"></i> 2. Quản lý Độc giả & Tài khoản (.xlsx/.csv)
         </button>
         <button onclick="switchAdminTab('borrows')" id="admin-tab-btn-borrows" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 flex items-center gap-2">
-          <i class="ph-bold ph-arrows-left-right"></i> 3. Quản lý Phiếu Mượn/Trả & Phí Phạt
+          <i class="ph-bold ph-arrows-left-right"></i> 3. Quản lý Phiếu Mượn/Trả
         </button>
         <button onclick="switchAdminTab('scanner'); focusScannerInput();" id="admin-tab-btn-scanner" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-emerald-700 hover:text-emerald-900 bg-emerald-50/70 rounded-t-xl flex items-center gap-2">
           <i class="ph-bold ph-barcode text-lg"></i> 4. Quầy Súng Quét Mã Vạch (POS Siêu Tốc)
@@ -744,11 +744,7 @@
             <div class="relative flex-1 min-w-[230px] max-w-md">
               <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
               <input type="text" id="adminBorrowSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="renderAdminBorrows()" placeholder="Tìm mã phiếu, tên độc giả, mã sách..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-blue-500" />
-            </div>
-            <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-xs shrink-0">
-              <span class="font-semibold text-amber-800">Phạt trễ (VNĐ/ngày):</span>
-              <input type="number" id="finePerDayInput" value="5000" step="1000" onchange="updateFineRate(this.value)" class="w-20 px-2 py-1 rounded bg-white border border-amber-300 font-bold text-slate-800" />
-            </div>
+            </div>            
           </div>
           <div class="flex flex-wrap items-center gap-2 shrink-0">
             <button onclick="exportBorrowsExcel()" class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition" title="Xuất danh sách phiếu mượn đang lọc ra file Excel">
@@ -769,7 +765,7 @@
             <option value="ALL">Tất cả trạng thái</option>
             <option value="pending">Chờ duyệt Online</option>
             <option value="borrowing">Đang mượn</option>
-            <option value="overdue">Quá hạn (Có phạt)</option>
+            <option value="overdue">Quá hạn trả</option>
             <option value="returned">Đã hoàn trả</option>
           </select>
           <select id="adminBorrowTargetFilter" onchange="onBorrowTargetFilterChange()" class="px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-indigo-700 focus:outline-none focus:border-blue-500 cursor-pointer">
@@ -796,7 +792,7 @@
                 <th class="py-3.5 px-4">Sách mượn</th>
                 <th class="py-3.5 px-4">Ngày mượn - Hạn trả</th>
                 <th class="py-3.5 px-4">Trạng thái</th>
-                <th class="py-3.5 px-4">Phí phạt tự động</th>
+                <th class="py-3.5 px-4">Tình trạng hạn</th>
                 <th class="py-3.5 px-4 text-right">Xử lý</th>
               </tr>
             </thead>
@@ -1086,7 +1082,7 @@
           <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-rose-50/40">
             <div>
               <h4 class="font-bold text-rose-900 text-sm flex items-center gap-2"><i class="ph-bold ph-warning-circle text-rose-600 text-lg"></i> Danh Sách Bạn Đọc Quá Hạn Cần Thu Hồi</h4>
-              <p class="text-xs text-rose-700 mt-0.5">Thời gian trễ hạn và phí phạt đôn đốc thu hồi</p>
+              <p class="text-xs text-rose-700 mt-0.5">Theo dõi thời gian trễ hạn để đôn đốc thu hồi</p>
             </div>
             <span id="statOverdueBadgeCount" class="px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 w-fit">0 phiếu quá hạn</span>
           </div>
@@ -1099,7 +1095,7 @@
                   <th class="py-3 px-4">Sách đang nợ</th>
                   <th class="py-3 px-4">Ngày mượn - Hạn trả</th>
                   <th class="py-3 px-4 text-center">Số ngày trễ</th>
-                  <th class="py-3 px-4">Phí phạt tạm tính</th>
+                  <th class="py-3 px-4">Ghi chú</th>
                   <th class="py-3 px-4 text-right">Thao tác</th>
                 </tr>
               </thead>
@@ -1661,11 +1657,7 @@
             <div>Hạn trả quy định: <strong id="detailBorrowDueDate" class="text-blue-700">---</strong></div>
             <div>Năm học: <strong id="detailBorrowSchoolYear">2026-2027</strong></div>
             <div>Ngày trả thực tế: <strong id="detailBorrowReturnDate" class="text-emerald-700">Chưa trả</strong></div>
-          </div>
-          <div id="detailBorrowFineBox" class="hidden p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-semibold flex items-center justify-between text-xs">
-            <span>Tiền phạt quá hạn tạm tính:</span>
-            <span id="detailBorrowFineAmount" class="font-bold text-sm">0đ</span>
-          </div>
+          </div>          
         </div>
       </div>
 
@@ -2780,9 +2772,8 @@
       setTimeout(() => box.classList.add('hidden'), 3200);
     }
 
-    function calculateFine(borrow) {
-      if (borrow.status === 'returned' || borrow.status === 'pending') return 0;
-      // Giáo viên / Cán bộ mượn sách giảng dạy cả năm học: Miễn phí phạt quá hạn
+    function getOverdueDays(borrow) {
+      if (!borrow || borrow.status === 'returned' || borrow.status === 'pending') return 0;
       const user = db.users.find(u => u.id === borrow.userId);
       if (user && getUserType(user) === 'teacher') return 0;
 
@@ -2791,11 +2782,15 @@
       const due = new Date(borrow.dueDate);
       due.setHours(0,0,0,0);
       const diffDays = Math.floor((today - due) / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? diffDays * (db.finePerDay || 5000) : 0;
+      return diffDays > 0 ? diffDays : 0;
+    }
+
+    function calculateFine(borrow) {
+      return 0;
     }
 
     function isOverdue(borrow) {
-      return calculateFine(borrow) > 0;
+      return getOverdueDays(borrow) > 0;
     }
 
     function removeVietnameseTones(str) {
@@ -3551,12 +3546,13 @@ let pendingFirstLoginUser = null;
       const myBorrows = db.borrows.filter(b => b.userId === activeReader.id);
       const activeCount = myBorrows.filter(b => b.status === 'borrowing' || b.status === 'pending').length;
       const overdueCount = myBorrows.filter(b => isOverdue(b)).length;
-      const totalFine = myBorrows.reduce((sum, b) => sum + calculateFine(b), 0);
+      const returnedCount = myBorrows.filter(b => b.status === 'returned').length;
 
       document.getElementById('readerStatActive').textContent = activeCount;
       document.getElementById('readerStatOverdue').textContent = overdueCount;
-      document.getElementById('readerStatFine').textContent = totalFine.toLocaleString('vi-VN') + 'đ';
-
+      const retEl = document.getElementById('readerStatReturned');
+      if (retEl) retEl.textContent = returnedCount;
+      
       const badge = document.getElementById('readerBadgeCount');
       if (activeCount > 0) {
         badge.textContent = activeCount;
@@ -3573,17 +3569,17 @@ let pendingFirstLoginUser = null;
 
       tbody.innerHTML = myBorrows.map(b => {
         const book = db.books.find(x => x.id === b.bookId) || { title: 'Sách đã xóa', code: '---' };
-        const fine = calculateFine(b);
+        const overdueDays = getOverdueDays(b)
         let badgeHTML = '';
         if (b.status === 'pending') badgeHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Chờ Thủ thư duyệt</span>`;
         else if (b.status === 'returned') badgeHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Đã trả (${b.returnDate})</span>`;
-        else if (fine > 0) badgeHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200">Quá hạn</span>`;
+        else if (overdueDays > 0) badgeHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200">Quá hạn</span>`;
         else badgeHTML = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Đang mượn</span>`;
 
         let cancelBtn = `<span class="text-xs text-slate-400">---</span>`;
         if (b.status === 'pending') {
           cancelBtn = `<button onclick="cancelPendingBorrow(${b.id})" class="text-xs font-semibold text-rose-600 hover:underline">Hủy đăng ký</button>`;
-        } else if (b.status === 'borrowing' && fine === 0 && !b.renewed) {
+        } else if (b.status === 'borrowing' && overdueDays === 0 && !b.renewed) {
           cancelBtn = `<button onclick="renewBorrowTicket(${b.id})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold transition">+ Gia hạn 7 ngày</button>`;
         } else if (b.renewed) {
           cancelBtn = `<span class="text-[11px] font-semibold text-emerald-600">Đã gia hạn</span>`;
@@ -3599,7 +3595,7 @@ let pendingFirstLoginUser = null;
             <td class="py-3.5 px-4 text-xs text-slate-600">${b.borrowDate}</td>
             <td class="py-3.5 px-4 text-xs font-semibold text-slate-700">${b.dueDate}</td>
             <td class="py-3.5 px-4">${badgeHTML}</td>
-            <td class="py-3.5 px-4 font-bold ${fine > 0 ? 'text-rose-600' : 'text-slate-400'}">${fine > 0 ? fine.toLocaleString('vi-VN') + 'đ' : '0đ'}</td>
+            <td class="py-3.5 px-4 text-xs font-bold ${overdueDays > 0 ? 'text-rose-600' : 'text-emerald-600'}">${b.status === 'returned' ? 'Hoàn tất' : (overdueDays > 0 ? `Trễ ${overdueDays} ngày` : 'Đúng hạn')}</td>
             <td class="py-3.5 px-4 text-right">${cancelBtn}</td>
           </tr>
         `;
@@ -3748,7 +3744,7 @@ let pendingFirstLoginUser = null;
               <td class="py-3 px-4"><p class="font-semibold text-slate-900">${bk.title}</p><p class="text-[11px] font-mono text-slate-400">${bk.code}</p></td>
               <td class="py-3 px-4 text-slate-600">${b.borrowDate} → <strong class="text-rose-700">${b.dueDate}</strong></td>
               <td class="py-3 px-4 text-center font-bold text-rose-600">Trễ ${dueDays} ngày</td>
-              <td class="py-3 px-4 font-bold text-rose-700">${calculateFine(b).toLocaleString('vi-VN')}đ</td>
+              <td class="py-3 px-4 font-semibold text-rose-700">Quá hạn trả</td>
               <td class="py-3 px-4 text-right space-x-1.5">
                 <button onclick="markBorrowReturned(${b.id})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-[11px]">Thu hồi trả</button>
                 <button onclick="sendOverdueEmail(${b.id})" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg font-semibold text-[11px]">Gửi Email</button>
@@ -3868,7 +3864,7 @@ let pendingFirstLoginUser = null;
       document.getElementById('statActiveBorrows').textContent = activeBorrows;
       document.getElementById('statPendingBorrows').textContent = `${pendingBorrows} phiếu chờ duyệt online`;
       document.getElementById('statOverdueCount').textContent = `${overdueBorrows} phiếu`;
-      document.getElementById('statTotalFine').textContent = `Tổng phạt: ${totalFine.toLocaleString('vi-VN')}đ`;
+      document.getElementById('statTotalFine').textContent = overdueBorrows > 0 ? 'Cần nhắc nhở hoàn trả' : 'Không có phiếu trễ hạn';
     }
 
     function renderAdminBooks() {
@@ -4394,12 +4390,12 @@ let pendingFirstLoginUser = null;
       document.getElementById('adminBorrowTableBody').innerHTML = list.map(b => {
         const user = db.users.find(u => u.id === b.userId) || { fullName: 'Độc giả đã xóa', cardCode: '---' };
         const book = db.books.find(x => x.id === b.bookId) || { title: 'Sách đã xóa', code: '---' };
-        const fine = calculateFine(b);
+        const overdueDays = getOverdueDays(b);
 
         let statusBadge = '';
         if (b.status === 'pending') statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Chờ duyệt Online</span>`;
         else if (b.status === 'returned') statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Đã trả (${b.returnDate})</span>`;
-        else if (fine > 0) statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200">Quá hạn (${Math.max(1, Math.floor((new Date() - new Date(b.dueDate)) / (1000 * 60 * 60 * 24)))} ngày)</span>`;
+        else if (overdueDays > 0) statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200">Quá hạn (${Math.max(1, Math.floor((new Date() - new Date(b.dueDate)) / (1000 * 60 * 60 * 24)))} ngày)</span>`;
         else statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Đang mượn</span>`;
 
         let actionBtns = `<div class="flex items-center justify-end gap-1.5 flex-wrap">`;
@@ -4414,8 +4410,8 @@ let pendingFirstLoginUser = null;
           actionBtns += `<button onclick="markBorrowReturned(${b.id})" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 shadow-sm flex items-center gap-1 transition" title="Thu hồi và nhận trả sách vào kho"><i class="ph-bold ph-arrow-counter-clockwise"></i> Thu hồi</button>`;
           
           // Nút Báo sách quá hạn qua Email (Đỏ) hoặc Nhắc nhở hạn trả qua Email (Xám)
-          if (fine > 0) {
-            actionBtns += `<button onclick="sendOverdueEmail(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1 transition" title="Gửi email đòi sách và thông báo phí phạt quá hạn"><i class="ph-bold ph-envelope-simple"></i> Báo quá hạn (Email)</button>`;
+          if (overdueDays > 0) {
+            actionBtns += `<button onclick="sendOverdueEmail(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1 transition" title="Gửi email đòi sách"><i class="ph-bold ph-envelope-simple"></i> Báo quá hạn (Email)</button>`;
           } else {
             actionBtns += `<button onclick="sendOverdueEmail(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold shadow-xs inline-flex items-center gap-1 transition" title="Gửi email nhắc nhở hạn trả sách"><i class="ph-bold ph-envelope-simple"></i> Nhắc hạn (Email)</button>`;
           }
@@ -4500,21 +4496,6 @@ let pendingFirstLoginUser = null;
       const staffNote = b.returnedBy ? ` (Thu hồi: ${b.returnedBy})` : (b.processedBy ? ` (Duyệt/Lập: ${b.processedBy})` : '');
       document.getElementById('detailBorrowReturnDate').textContent = (b.status === 'returned' ? (b.returnDate || 'Đã hoàn trả') : 'Chưa hoàn trả') + staffNote;
 
-      // Phạt quá hạn
-      const fineBox = document.getElementById('detailBorrowFineBox');
-      const fineAmount = document.getElementById('detailBorrowFineAmount');
-      if (fine > 0) {
-        fineBox.classList.remove('hidden');
-        fineBox.className = 'p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-semibold flex items-center justify-between text-xs';
-        fineAmount.textContent = fine.toLocaleString('vi-VN') + ' VNĐ';
-      } else if (isTeacher) {
-        fineBox.classList.remove('hidden');
-        fineBox.className = 'p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between';
-        fineAmount.textContent = 'Miễn phạt (Giáo viên)';
-      } else {
-        fineBox.classList.add('hidden');
-      }
-
       // Thao tác nhanh bên trong popup chi tiết (kèm nút gửi Email)
       const actionArea = document.getElementById('detailBorrowActionArea');
       if (b.status === 'pending') {
@@ -4528,8 +4509,8 @@ let pendingFirstLoginUser = null;
           <button type="button" onclick="markBorrowReturned(${b.id}); closeBorrowDetailModal();" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition flex items-center gap-1.5 shadow-sm">
             <i class="ph-bold ph-arrow-counter-clockwise"></i> Thu hồi / Trả sách
           </button>
-          <button type="button" onclick="sendOverdueEmail(${b.id})" class="px-3.5 py-2 rounded-xl ${fine > 0 ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'} font-bold transition flex items-center gap-1.5 shadow-sm">
-            <i class="ph-bold ph-envelope-simple"></i> ${fine > 0 ? 'Gửi Email báo quá hạn' : 'Gửi Email nhắc hạn'}
+          <button type="button" onclick="sendOverdueEmail(${b.id})" class="px-3.5 py-2 rounded-xl ${isOverdue(b) ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'} font-bold transition flex items-center gap-1.5 shadow-sm">
+            <i class="ph-bold ph-envelope-simple"></i> ${isOverdue(b) ? 'Gửi Email báo quá hạn' : 'Gửi Email nhắc hạn'}
           </button>
         `;
       } else {
@@ -4842,8 +4823,6 @@ async function sendOverdueEmail(id) {
 
       showToast(`Đang kết nối EmailJS để gửi thư cho ${user.fullName}...`);
       
-      const fineAmount = calculateFine(b);
-
       const templateParams = {
         to_email: user.email,
         reader_name: user.fullName,
@@ -4854,7 +4833,7 @@ async function sendOverdueEmail(id) {
         borrow_date: b.borrowDate,
         due_date: b.dueDate,
         // Dùng biến message để truyền thêm thông báo phí phạt vào template EmailJS
-        message: `Cuốn sách này đã quá hạn hoàn trả. Phí phạt chậm trả tạm tính đến hôm nay là: ${fineAmount.toLocaleString('vi-VN')} VNĐ.`
+        message: `Cuốn sách này đã quá hạn hoàn trả. Vui lòng mang sách đến thư viện hoàn trả trong thời gian sớm nhất.`
       };
 
       try {
@@ -5318,8 +5297,7 @@ async function sendOverdueEmail(id) {
    const rows = list.map((b, idx) => {
      const user = db.users.find(u => u.id === b.userId) || {};
      const book = db.books.find(x => x.id === b.bookId) || {};
-     const fine = calculateFine(b);
-     const statusLabel = b.status === 'pending' ? 'Chờ duyệt Online' : (b.status === 'returned' ? `Đã trả (${b.returnDate || ''})` : (fine > 0 ? 'Quá hạn' : 'Đang mượn'));
+     const statusLabel = b.status === 'pending' ? 'Chờ duyệt Online' : (b.status === 'returned' ? `Đã trả (${b.returnDate || ''})` : (isOverdue(b) ? 'Quá hạn' : 'Đang mượn'));
      return {
        'STT': idx + 1,
        'Mã Phiếu': b.ticketCode,
@@ -5333,7 +5311,6 @@ async function sendOverdueEmail(id) {
        'Hạn Trả': b.dueDate || '---',
        'Ngày Trả Thực Tế': b.returnDate || 'Chưa trả',
        'Trạng Thái': statusLabel,
-       'Phí Phạt (VNĐ)': fine,
        'Thủ Thư Xử Lý': b.returnedBy || b.processedBy || '---'
      };
    });
@@ -6502,8 +6479,7 @@ async function sendOverdueEmail(id) {
           return;
         }
         const readerBorrows = db.borrows.filter(b => b.userId === reader.id && (b.status === 'borrowing' || b.status === 'pending'));
-        const totalFine = readerBorrows.reduce((sum, b) => sum + calculateFine(b), 0);
-
+        
         box.innerHTML = `
           <div class="space-y-4">
             <div class="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -6519,10 +6495,6 @@ async function sendOverdueEmail(id) {
                 <div class="text-center pr-3 border-r border-slate-200">
                   <span class="text-[10px] font-semibold text-slate-400 uppercase block">Đang giữ</span>
                   <span class="text-lg font-bold text-blue-600">${readerBorrows.length}/5</span>
-                </div>
-                <div class="text-center">
-                  <span class="text-[10px] font-semibold text-slate-400 uppercase block">Phí phạt</span>
-                  <span class="text-sm font-bold ${totalFine > 0 ? 'text-rose-600' : 'text-emerald-600'}">${totalFine.toLocaleString('vi-VN')}đ</span>
                 </div>
               </div>
             </div>
@@ -6550,14 +6522,14 @@ async function sendOverdueEmail(id) {
                           </div>
                           <p class="text-[11px] text-slate-500 mt-0.5">
                             Mã phiếu: <strong class="font-mono">${b.ticketCode}</strong> • Hạn trả: <strong>${b.dueDate}</strong>
-                            ${fine > 0 ? `<span class="text-rose-600 font-bold"> • Phạt quá hạn: ${fine.toLocaleString('vi-VN')}đ</span>` : ''}
+                            ${isOverdue(b) ? '<span class="text-rose-600 font-bold"> • Quá hạn trả</span>' : ''}
                           </p>
                         </div>
                         <div class="flex items-center gap-1.5">
                           ${b.status === 'pending'
                             ? `<button type="button" onclick="simulateBarcodeScan('${bk.code}')" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold">🔫 Duyệt giao sách</button>`
                             : `
-                              ${!b.renewed && fine === 0 ? `<button type="button" onclick="renewBorrowTicket(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold">+7 ngày</button>` : ''}
+                              ${!b.renewed && !isOverdue(b) ? `<button type="button" onclick="renewBorrowTicket(${b.id})" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold">+7 ngày</button>` : ''}
                               <button type="button" onclick="simulateBarcodeScan('${bk.code}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">🔫 Nhận trả sách</button>
                             `
                           }
