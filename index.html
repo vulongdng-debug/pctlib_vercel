@@ -16,7 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Thư viện EmailJS SDK -->
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-  <!-- Thư viện JsBarcode (Tạo mã vạch chuẩn Code-128 cho Súng Quét Mã Vạch) -->
+  <!-- Thư viện JsBarcode (Tạo mã vạch chuẩn Code-128 cho Máy quét Mã Vạch) -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -371,7 +371,7 @@
             </div>
           </div>
           <div class="mt-4 bg-white rounded-xl p-2.5 text-center shadow-inner relative z-10">
-            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Mã vạch thẻ (Đưa cho Súng Quét tại quầy)</p>
+            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Mã vạch thẻ (Đưa cho Máy quét tại quầy)</p>
             <svg id="profileBarcodeSvg" class="mx-auto max-h-14 w-full"></svg>
           </div>
           <div class="pt-4 mt-4 border-t border-white/10 flex items-center justify-between relative z-10">
@@ -541,7 +541,7 @@
           <i class="ph-bold ph-arrows-left-right"></i> 3. Quản lý Phiếu Mượn/Trả
         </button>
         <button onclick="switchAdminTab('scanner'); focusScannerInput();" id="admin-tab-btn-scanner" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-emerald-700 hover:text-emerald-900 bg-emerald-50/70 rounded-t-xl flex items-center gap-2">
-          <i class="ph-bold ph-barcode text-lg"></i> 4. Quầy Súng Quét Mã Vạch (POS Siêu Tốc)
+          <i class="ph-bold ph-barcode text-lg"></i> 4. Quầy Máy quét Mã Vạch (POS Siêu Tốc)
         </button>
         <button onclick="switchAdminTab('stats'); renderAdminDeepStats();" id="admin-tab-btn-stats" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-indigo-700 hover:text-indigo-900 bg-indigo-50/70 rounded-t-xl flex items-center gap-2">
           <i class="ph-bold ph-chart-pie-slice text-lg"></i> 5. Báo Cáo & Thống Kê Thư Viện
@@ -809,19 +809,19 @@
             <div class="space-y-1">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> SÚNG QUÉT MÃ VẠCH USB / BLUETOOTH HID
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Máy quét MÃ VẠCH USB / BLUETOOTH HID
                 </span>
-                <span class="text-xs text-blue-200">Tự động nhận chuỗi mã vạch + phím Enter từ súng quét</span>
+                <span class="text-xs text-blue-200">Tự động nhận chuỗi mã vạch + phím Enter từ Máy quét</span>
               </div>
               <h3 class="text-lg sm:text-xl font-bold text-white pt-1">
-                Quầy Giao Dịch Mượn / Trả Tự Động Bằng Súng Quét Mã Vạch
+                Quầy Giao Dịch Mượn / Trả Tự Động Bằng Máy quét Mã Vạch
               </h3>
             </div>
 
             <!-- Toggles: Global Catch, Sound, Loan Days -->
             <div class="flex flex-wrap items-center gap-2.5">
               <button type="button" id="btnToggleGlobalScanner" onclick="toggleGlobalScannerMode()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
-                <i class="ph-bold ph-broadcast"></i> Bắt Súng Toàn Cục: ĐANG BẬT
+                <i class="ph-bold ph-broadcast"></i> Bắt Máy Toàn Cục: ĐANG BẬT
               </button>
               <button type="button" id="btnToggleScannerSound" onclick="toggleScannerSound()" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition border border-white/15">
                 <i class="ph-bold ph-speaker-high"></i> Âm Bíp: BẬT
@@ -841,7 +841,7 @@
           <!-- Mode Selector & Main Barcode Input Box -->
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-5 items-center">
             <div class="lg:col-span-5 space-y-2">
-              <label class="block text-xs font-semibold text-blue-200 uppercase tracking-wider">Chế độ vận hành Súng Quét:</label>
+              <label class="block text-xs font-semibold text-blue-200 uppercase tracking-wider">Chế độ vận hành Máy quét:</label>
               <div class="grid grid-cols-3 gap-2">
                 <button type="button" id="posModeBtn-SMART_POS" onclick="setPosScannerMode('SMART_POS')" class="p-2.5 rounded-xl border-2 border-emerald-400 bg-emerald-500/20 text-left transition">
                   <span class="text-xs font-bold text-emerald-300 block">1. Tự động POS</span>
@@ -853,7 +853,7 @@
                 </button>
                 <button type="button" id="posModeBtn-FAST_RETURN" onclick="setPosScannerMode('FAST_RETURN')" class="p-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-left transition">
                   <span class="text-xs font-bold text-white block">3. Trả Nhanh 1-Bước</span>
-                  <span class="text-[10px] text-slate-300 block mt-0.5">Chỉ cần bắn Mã Sách / Mã Phiếu</span>
+                  <span class="text-[10px] text-slate-300 block mt-0.5">Chỉ cần quét Mã Sách / Mã Phiếu</span>
                 </button>
               </div>
             </div>
@@ -861,9 +861,9 @@
             <div class="lg:col-span-7 space-y-2">
               <div class="flex items-center justify-between">
                 <label for="barcodeScannerInput" class="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <i class="ph-bold ph-crosshair text-base"></i> Ô Nhận Tín Hiệu Súng Quét Mã Vạch (Hoặc Gõ Mã + Enter):
+                  <i class="ph-bold ph-crosshair text-base"></i> Ô Nhận Tín Hiệu Máy quét Mã Vạch (Hoặc Gõ Mã + Enter):
                 </label>
-                <span id="lastScannedTimeLabel" class="text-[11px] text-blue-200 font-mono">Chưa có lượt bắn nào</span>
+                <span id="lastScannedTimeLabel" class="text-[11px] text-blue-200 font-mono">Chưa có lượt quét nào</span>
               </div>
               <form onsubmit="handleManualBarcodeSubmit(event)" class="flex gap-2">
                 <div class="relative flex-1">
@@ -872,7 +872,7 @@
                     type="text"
                     id="barcodeScannerInput"
                     autocomplete="off"
-                    placeholder="Bóp cò súng quét Mã Thẻ (HS12A1-01), Mã Sách (TH12-001) hoặc Mã Phiếu (PM-...)..."
+                    placeholder="Bóp cò Máy quét Mã Thẻ (HS12A1-01), Mã Sách (TH12-001) hoặc Mã Phiếu (PM-...)..."
                     class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-white text-slate-900 font-mono font-bold text-sm sm:text-base focus:outline-none focus:ring-4 focus:ring-emerald-400 shadow-inner"
                   />
                 </div>
@@ -883,7 +883,7 @@
 
               <!-- Quick Demo Simulation Triggers -->
               <div class="flex flex-wrap items-center gap-1.5 pt-1">
-                <span class="text-[11px] text-blue-200 font-medium mr-1">Bắn thử nhanh (Không cần cắm súng):</span>
+                <span class="text-[11px] text-blue-200 font-medium mr-1">Quét thử nhanh (Không cần cắm Máy):</span>
                 <button type="button" onclick="simulateBarcodeScan('HS12A1-01')" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-mono text-amber-300 border border-white/15 transition">
                   🔫 Thẻ: HS12A1-01
                 </button>
@@ -929,7 +929,7 @@
             </div>
 
             <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
-              <span>💡 <strong>Mẹo:</strong> Khi đã có Độc giả trên màn hình, bắn tiếp <strong>Mã Sách</strong> để tự động Duyệt / Cho mượn / Thu hồi trả!</span>
+              <span>💡 <strong>Mẹo:</strong> Khi đã có Độc giả trên màn hình, quét tiếp <strong>Mã Sách</strong> để tự động Duyệt / Cho mượn / Thu hồi trả!</span>
               <button type="button" onclick="openBarcodePrintModal('users')" class="text-blue-600 font-semibold hover:underline flex items-center gap-1">
                 <i class="ph-bold ph-printer"></i> In thẻ mã vạch cho lớp
               </button>
@@ -944,8 +944,8 @@
                   <i class="ph-bold ph-list-checks text-lg"></i>
                 </div>
                 <div>
-                  <h4 class="font-bold text-slate-800 text-sm">Nhật Ký Bắn Mã Vạch Thời Gian Thực</h4>
-                  <p class="text-[11px] text-slate-500">Lịch sử các lần bóp cò súng trong phiên làm việc</p>
+                  <h4 class="font-bold text-slate-800 text-sm">Nhật Ký Quét Mã Vạch Thời Gian Thực</h4>
+                  <p class="text-[11px] text-slate-500">Lịch sử các lần quét trong phiên làm việc</p>
                 </div>
               </div>
               <button type="button" onclick="clearPosScanLog()" class="text-xs text-slate-400 hover:text-rose-600 font-semibold">
@@ -958,7 +958,7 @@
               <i class="ph-duotone ph-barcode text-2xl text-slate-400 shrink-0"></i>
               <div>
                 <p class="font-bold text-slate-800">Sẵn sàng nhận tín hiệu quét</p>
-                <p class="text-[11px] text-slate-500">Hãy hướng súng quét vào Mã Thẻ độc giả hoặc Mã Sách để bắt đầu.</p>
+                <p class="text-[11px] text-slate-500">Hãy hướng Máy quét vào Mã Thẻ độc giả hoặc Mã Sách để bắt đầu.</p>
               </div>
             </div>
 
@@ -1616,7 +1616,7 @@
 
       <!-- Body -->
       <div class="p-6 space-y-4 text-sm max-h-[75vh] overflow-y-auto">
-        <!-- Mã vạch phiếu mượn (quét bằng súng hoặc tra cứu) -->
+        <!-- Mã vạch phiếu mượn (quét bằng máy hoặc tra cứu) -->
         <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
           <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Mã vạch phiếu mượn (Code-128)</p>
           <svg id="detailBorrowBarcodeSvg" class="mx-auto max-h-12 w-full"></svg>
@@ -1689,8 +1689,8 @@
           <select id="directBorrowUserSelect" required onchange="handleDirectBorrowUserSelected(this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-medium"></select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Quét nhanh Mã Sách bằng Súng hoặc Chọn Sách *</label>
-          <input type="text" id="directBorrowBookFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="filterDirectBorrowBooks(this.value)" placeholder="Bắn mã vạch sách (VD: TH12-001) hoặc gõ tên sách..." class="w-full px-3 py-2 mb-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-500 font-mono" />
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Quét nhanh Mã Sách bằng máy quét hoặc Chọn Sách *</label>
+          <input type="text" id="directBorrowBookFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="filterDirectBorrowBooks(this.value)" placeholder="Quét mã vạch sách (VD: TH12-001) hoặc gõ tên sách..." class="w-full px-3 py-2 mb-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-500 font-mono" />
           <select id="directBorrowBookSelect" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium"></select>
         </div>
         <!-- Chọn Ngày mượn (hỗ trợ nhập lùi về quá khứ) & Hạn trả sách -->
@@ -1811,9 +1811,9 @@
       <div id="barcodePrintModalHeader" class="px-6 py-4 bg-gradient-to-r from-slate-900 to-blue-900 text-white flex items-center justify-between shrink-0">
         <div>
           <h3 class="font-bold text-base flex items-center gap-2">
-            <i class="ph-bold ph-printer text-amber-400 text-xl"></i> Trung Tâm Tạo & In Mã Vạch Chuẩn Code-128 (Dùng Cho Súng Quét)
+            <i class="ph-bold ph-printer text-amber-400 text-xl"></i> Trung Tâm Tạo & In Mã Vạch Chuẩn Code-128 (Dùng Cho Máy quét)
           </h3>
-          <p class="text-xs text-blue-200 mt-0.5">In tem nhãn dán gáy sách hoặc in thẻ thư viện hàng loạt theo lớp để quét bằng súng mã vạch</p>
+          <p class="text-xs text-blue-200 mt-0.5">In tem nhãn dán gáy sách hoặc in thẻ thư viện hàng loạt theo lớp để quét bằng Máy mã vạch</p>
         </div>
         <button type="button" onclick="closeBarcodePrintModal()" class="text-white/80 hover:text-white"><i class="ph-bold ph-x text-xl"></i></button>
       </div>
@@ -2230,8 +2230,8 @@
             <label class="flex items-start gap-2 p-2 rounded-lg bg-white border border-purple-100 hover:bg-purple-100/40 cursor-pointer transition">
               <input type="checkbox" id="perm_scanner" class="mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" checked />
               <div>
-                <strong class="text-slate-800 block">4. Quầy Súng Quét POS</strong>
-                <span class="text-[10px] text-slate-500">Bắn mã vạch trực quầy siêu tốc</span>
+                <strong class="text-slate-800 block">4. Quầy Máy quét </strong>
+                <span class="text-[10px] text-slate-500">Quét mã vạch trực quầy siêu tốc</span>
               </div>
             </label>
 
@@ -6032,7 +6032,7 @@ async function sendOverdueEmail(id) {
       showToast(`Đã gia hạn phiếu ${b.ticketCode} thêm 7 ngày (Hạn mới: ${b.dueDate})!`);
     }
 
-    // ==================== BỘ PHÁT ÂM THANH "BÍP" CHO SÚNG QUÉT MÃ VẠCH ====================
+    // ==================== BỘ PHÁT ÂM THANH "BÍP" CHO Máy quét MÃ VẠCH ====================
     let scannerSoundEnabled = true;
     let sharedAudioCtx = null;
 
@@ -6088,7 +6088,7 @@ async function sendOverdueEmail(id) {
       if (scannerSoundEnabled) playScannerBeep('success');
     }
 
-    // ==================== HỆ THỐNG BẮT SÓNG SÚNG QUÉT MÃ VẠCH (USB / BLUETOOTH HID) ====================
+    // ==================== HỆ THỐNG BẮT SÓNG Máy quét MÃ VẠCH (USB / BLUETOOTH HID) ====================
     let globalScannerEnabled = true;
     let posScannerMode = 'SMART_POS'; // 'SMART_POS' | 'FAST_BORROW' | 'FAST_RETURN'
     let posActiveReaderId = null;
@@ -6105,18 +6105,18 @@ async function sendOverdueEmail(id) {
           ? 'px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm'
           : 'px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition';
         btn.innerHTML = globalScannerEnabled
-          ? '<i class="ph-bold ph-broadcast"></i> Bắt Súng Toàn Cục: ĐANG BẬT'
-          : '<i class="ph-bold ph-broadcast"></i> Bắt Súng Toàn Cục: ĐÃ TẮT';
+          ? '<i class="ph-bold ph-broadcast"></i> Bắt Máy Toàn Cục: ĐANG BẬT'
+          : '<i class="ph-bold ph-broadcast"></i> Bắt Máy Toàn Cục: ĐÃ TẮT';
       }
       if (headerBadge) {
         headerBadge.className = globalScannerEnabled
           ? 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200'
           : 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200';
         headerBadge.innerHTML = globalScannerEnabled
-          ? '<i class="ph-bold ph-barcode"></i> Súng Barcode: Bật'
-          : '<i class="ph-bold ph-barcode"></i> Súng Barcode: Tắt';
+          ? '<i class="ph-bold ph-barcode"></i> Máy Barcode: Bật'
+          : '<i class="ph-bold ph-barcode"></i> Máy Barcode: Tắt';
       }
-      showToast(globalScannerEnabled ? 'Đã bật cảm biến Súng Quét Mã Vạch toàn cục!' : 'Đã tắt bắt sóng súng quét toàn cục.');
+      showToast(globalScannerEnabled ? 'Đã bật cảm biến Máy quét Mã Vạch toàn cục!' : 'Đã tắt bắt sóng Máy quét toàn cục.');
     }
 
     function setPosScannerMode(mode) {
@@ -6158,7 +6158,7 @@ async function sendOverdueEmail(id) {
       if (input) input.value = '';
     }
 
-    // Bộ lắng nghe xung phím tốc độ cao từ Súng Quét Mã Vạch USB/Bluetooth
+    // Bộ lắng nghe xung phím tốc độ cao từ Máy quét Mã Vạch USB/Bluetooth
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && !document.getElementById('admin-tab-scanner')?.classList.contains('hidden')) {
         clearPosActiveReader();
@@ -6169,7 +6169,7 @@ async function sendOverdueEmail(id) {
 
       const activeTag = document.activeElement ? document.activeElement.tagName : '';
       const activeId = document.activeElement ? document.activeElement.id : '';
-      // Nếu đang gõ trong một ô input khác (không phải barcodeScannerInput), không cướp phím trừ khi súng bắn ở ngoài
+      // Nếu đang gõ trong một ô input khác (không phải barcodeScannerInput), không cướp phím trừ khi Máy quét ở ngoài
       if ((activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') && activeId !== 'barcodeScannerInput') {
         return;
       }
@@ -6214,9 +6214,9 @@ async function sendOverdueEmail(id) {
 
       const timeStr = new Date().toLocaleTimeString('vi-VN');
       const timeLabel = document.getElementById('lastScannedTimeLabel');
-      if (timeLabel) timeLabel.textContent = `Lượt bắn gần nhất: ${code} lúc ${timeStr}`;
+      if (timeLabel) timeLabel.textContent = `Lượt quét gần nhất: ${code} lúc ${timeStr}`;
 
-      // 1. Kiểm tra xem mã vừa bắn có phải là MÃ THẺ ĐỘC GIẢ (User CardCode) không?
+      // 1. Kiểm tra xem mã vừa quét có phải là MÃ THẺ ĐỘC GIẢ (User CardCode) không?
       const matchedUser = db.users.find(u => String(u.cardCode || '').toUpperCase() === code);
       if (matchedUser) {
         if (matchedUser.status === 'locked') {
@@ -6234,7 +6234,7 @@ async function sendOverdueEmail(id) {
         return;
       }
 
-      // 2. Kiểm tra xem mã vừa bắn có phải là MÃ PHIẾU MƯỢN (TicketCode: PM-... hoặc ONL-...) không?
+      // 2. Kiểm tra xem mã vừa quét có phải là MÃ PHIẾU MƯỢN (TicketCode: PM-... hoặc ONL-...) không?
       const matchedTicket = db.borrows.find(b => String(b.ticketCode || '').toUpperCase() === code);
       if (matchedTicket) {
         const reader = db.users.find(u => u.id === matchedTicket.userId);
@@ -6264,7 +6264,7 @@ async function sendOverdueEmail(id) {
         return;
       }
 
-      // 3. Kiểm tra xem mã vừa bắn có phải là MÃ SÁCH (Book Code: TH12-001...) không?
+      // 3. Kiểm tra xem mã vừa quét có phải là MÃ SÁCH (Book Code: TH12-001...) không?
       const matchedBook = db.books.find(b => String(b.code || '').toUpperCase() === code);
       if (matchedBook) {
         await handleScannedBookOnPos(matchedBook);
@@ -6309,7 +6309,7 @@ async function sendOverdueEmail(id) {
             return;
           } else if (activeBorrowsForBook.length > 1) {
             playScannerBeep('error');
-            logPosScan(book.code, 'CẦN QUÉT THẺ', `Có ${activeBorrowsForBook.length} độc giả đang mượn "${book.code}". Hãy bắn Thẻ Độc Giả trước!`, 'warning');
+            logPosScan(book.code, 'CẦN QUÉT THẺ', `Có ${activeBorrowsForBook.length} độc giả đang mượn "${book.code}". Hãy quét Thẻ Độc Giả trước!`, 'warning');
             showToast(`Có ${activeBorrowsForBook.length} người đang mượn sách này. Hãy quét Thẻ học sinh!`);
             return;
           } else {
@@ -6336,8 +6336,8 @@ async function sendOverdueEmail(id) {
             return;
           }
           playScannerBeep('error');
-          logPosScan(book.code, 'CHƯA QUÉT THẺ', `Đã nhận diện sách "${book.title}". Vui lòng bắn Mã Thẻ Độc Giả trước để cho mượn!`, 'warning');
-          showToast('Vui lòng dùng súng bắn Mã Thẻ Độc Giả trước khi bắn Mã Sách!');
+          logPosScan(book.code, 'CHƯA QUÉT THẺ', `Đã nhận diện sách "${book.title}". Vui lòng quét Mã Thẻ Độc Giả trước để cho mượn!`, 'warning');
+          showToast('Vui lòng dùng Máy quét Mã Thẻ Độc Giả trước khi quét Mã Sách!');
           return;
         }
       }
@@ -6458,7 +6458,7 @@ async function sendOverdueEmail(id) {
             <div>
               <h5 class="font-bold text-slate-800 text-base">Chưa chọn Độc giả tại quầy</h5>
               <p class="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                Hãy dùng <strong>Súng quét mã vạch</strong> bắn vào <strong>Thẻ thư viện học sinh/giáo viên</strong> (hoặc bắn trực tiếp Mã sách nếu muốn thu hồi trả sách nhanh).
+                Hãy dùng <strong>Máy quét mã vạch</strong> quét vào <strong>Thẻ thư viện học sinh/giáo viên</strong> (hoặc quét trực tiếp Mã sách nếu muốn thu hồi trả sách nhanh).
               </p>
             </div>
             <div class="pt-2 flex flex-wrap justify-center gap-2">
@@ -6501,11 +6501,11 @@ async function sendOverdueEmail(id) {
             <div class="space-y-2">
               <div class="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
                 <span>Sách đang giữ / Chờ duyệt của ${reader.fullName} (${readerBorrows.length})</span>
-                <span class="text-[11px] text-emerald-600 font-normal">Bắn mã sách bất kỳ để Mượn mới hoặc Trả sách</span>
+                <span class="text-[11px] text-emerald-600 font-normal">quét mã sách bất kỳ để Mượn mới hoặc Trả sách</span>
               </div>
               ${readerBorrows.length === 0 ? `
                 <div class="p-6 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-400">
-                  Độc giả hiện không giữ cuốn sách nào. Hãy bắn <strong>Mã vạch Sách</strong> để lập phiếu mượn!
+                  Độc giả hiện không giữ cuốn sách nào. Hãy quét <strong>Mã vạch Sách</strong> để lập phiếu mượn!
                 </div>
               ` : `
                 <div class="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
@@ -6692,7 +6692,7 @@ async function sendOverdueEmail(id) {
           }
         });
 
-        summary.textContent = `Đang hiển thị ${labelItems.length} tem mã vạch sách (Chuẩn CODE-128 cho súng quét)`;
+        summary.textContent = `Đang hiển thị ${labelItems.length} tem mã vạch sách (Chuẩn CODE-128 cho Máy quét)`;
         grid.className = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4';
         grid.innerHTML = labelItems.map((item, idx) => `
           <div class="bg-white border-2 border-dashed border-slate-300 rounded-xl p-3 text-center flex flex-col justify-between shadow-sm">
