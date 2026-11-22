@@ -3608,23 +3608,46 @@
     }
 
     async function handleLogout() {
-      if (isVisualEditMode) toggleVisualEditText();
+      if (typeof isVisualEditMode !== 'undefined' && isVisualEditMode) toggleVisualEditText();
       const visualToolbar = document.getElementById('visualEditorToolbar');
       if (visualToolbar) visualToolbar.style.display = 'none';
 
+      pendingTargetView = null;
       pendingSupaStaffAuth = null;
+      if (typeof posActiveReaderId !== 'undefined') posActiveReaderId = null;
       setSavedReaderCred(null);
-      if (isCloudConnected && supabaseClient) {
-        try { await supabaseClient.auth.signOut(); } catch (e) {}
+      saveSessionUser(null);
+
+      // Đóng toàn bộ modal đang mở (nếu có) và ẩn badge đếm của độc giả
+      [
+        'authModal', 'bookDetailModal', 'updateProfileModal', 'firstLoginModal',
+        'securityCenterModal', 'staffFormModal', 'staffChangePasswordModal',
+        'borrowDetailModal', 'bookFormModal', 'userFormModal', 'adminBorrowModal',
+        'cloudConfigModal', 'promoteStudentsModal'
+      ].forEach(modalId => {
+        const el = document.getElementById(modalId);
+        if (el) el.classList.add('hidden');
+      });
+      ['readerBadgeCount', 'mobileReaderBadgeCount'].forEach(bId => {
+        const bEl = document.getElementById(bId);
+        if (bEl) { bEl.textContent = '0'; bEl.classList.add('hidden'); }
+      });
+
+      if (isCloudConnected) {
         db.users = [];
         db.borrows = [];
         db.staffAccounts = [];
       }
 
-      saveSessionUser(null);
-      renderAll();
+      // Chuyển ngay về Trang chủ & cuộn lên đầu trang
       switchView('reader-home');
-      showToast('Đã đăng xuất khỏi hệ thống.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showToast('Đã đăng xuất và trở về Trang chủ.');
+
+      if (isCloudConnected && supabaseClient) {
+        try { await supabaseClient.auth.signOut(); } catch (e) {}
+        try { await syncFromCloud(false); } catch (e) {}
+      }
     }
 let pendingFirstLoginUser = null;
 
@@ -6544,22 +6567,22 @@ async function sendOverdueEmail(id) {
         }
 
         if (isCloudConnected && supabaseClient) {
-          if (!email || !email.includes('@')) {
-            showNoticeModal('Thiếu Email đăng nhập', 'Ở chế độ Cloud Supabase Auth, mỗi tài khoản Thủ thư cần có địa chỉ Email hợp lệ!');
-            return;
-          }
           const staffPass = rawPassword || '123456';
           if (staffPass.length < 6) {
             showNoticeModal('Mật khẩu quá ngắn', 'Mật khẩu thủ thư phải có tối thiểu 6 ký tự!');
             return;
           }
+          const cleanUserKey = username.toLowerCase().replace(/[^a-z0-9]/g, '') || ('staff' + Date.now());
+          const authEmail = (email && email.includes('@'))
+            ? email
+            : `${cleanUserKey}.${Date.now().toString().slice(-4)}@staff.pct.edu.vn`;
           try {
             // Dùng client tạm không lưu session để không làm đăng xuất Super Admin hiện tại
             const tempAuthClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
               auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
             });
             const { data: signUpRes, error: signUpErr } = await tempAuthClient.auth.signUp({
-              email,
+              email: authEmail,
               password: staffPass
             });
             if (signUpErr) {
@@ -6568,9 +6591,9 @@ async function sendOverdueEmail(id) {
             }
             const { data: insertedStaff, error: insErr } = await supabaseClient.from('staff_accounts').insert({
               auth_user_id: signUpRes?.user?.id || null,
-              username,
+              username: username.toUpperCase(),
               full_name: fullName,
-              email,
+              email: authEmail,
               phone,
               role: 'librarian',
               role_title: roleTitle,
@@ -6582,7 +6605,14 @@ async function sendOverdueEmail(id) {
             db.staffAccounts.push(mapStaffFromDB(insertedStaff));
             closeStaffModal();
             renderAdminStaffList();
-            showToast(`Đã tạo tài khoản thủ thư ${fullName}!`);
+            if (signUpRes?.user && !signUpRes?.session) {
+              showNoticeModal(
+                'Đã tạo tài khoản (Chờ xác nhận Email)',
+                `Tài khoản "${username}" đã được tạo! Tuy nhiên Supabase đang bật "Confirm email". Hãy bấm link xác nhận trong hộp thư "${authEmail}", HOẶC tắt "Confirm email" trong Supabase Dashboard (Authentication → Providers → Email) để tài khoản tạo từ web dùng được ngay lập tức.`
+              );
+            } else {
+              showToast(`Đã tạo và kích hoạt tài khoản thủ thư ${fullName} (${username}) thành công!`);
+            }
             return;
           } catch (err) {
             showNoticeModal('Lỗi tạo thủ thư', err.message || 'Không thể lưu tài khoản thủ thư lên Supabase!');
