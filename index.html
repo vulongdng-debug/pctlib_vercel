@@ -3469,10 +3469,15 @@
           const { data: res, error: rpcErr } = await supabaseClient.rpc('reader_login_and_fetch', {
             p_card_code: inputUser,
             p_password_hash: passHash,
-            p_plain_is_default: isDefInput
+            p_plain_is_default: isDefInput,
+            p_plain_password: inputPass
           });
 
-          if (rpcErr || !res || !res.success) {
+          if (rpcErr) {
+            showNoticeModal('Lỗi hàm đăng nhập Độc giả', `Lỗi Supabase RPC: ${rpcErr.message}. Hãy kiểm tra lại bước chạy file 04_rpc_reader_and_extras.sql!`);
+            return;
+          }
+          if (!res || !res.success) {
             showNoticeModal('Đăng nhập không thành công', res?.error || 'Sai Mã thẻ/Email hoặc Mật khẩu!');
             return;
           }
