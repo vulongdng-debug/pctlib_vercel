@@ -1,0 +1,23 @@
+# Bảo vệ dữ liệu học sinh / báo cáo nhạy cảm không đẩy lên GitHub
+*.xls
+*.xlsx
+*.csv
+Xuat bao cao/
+backup/
+
+# File môi trường & khóa bí mật
+.env
+.env.local
+.env.*.local
+
+# File hệ điều hành & trình soạn thảo
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Log & file tạm
+*.log
+*.tmp
+*.bak
