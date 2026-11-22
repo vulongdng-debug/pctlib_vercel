@@ -4971,6 +4971,7 @@ let pendingFirstLoginUser = null;
         const user = db.users.find(u => u.id === b.userId) || { fullName: 'Độc giả đã xóa', cardCode: '---' };
         const book = db.books.find(x => x.id === b.bookId) || { title: 'Sách đã xóa', code: '---' };
         const overdueDays = getOverdueDays(b);
+        const fine = calculateFine(b);
 
         let statusBadge = '';
         if (b.status === 'pending') statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Chờ duyệt Online</span>`;
@@ -8289,15 +8290,19 @@ async function sendOverdueEmail(id) {
       if (document.getElementById('globalSchoolYearSelect') && db.currentSchoolYear) {
         document.getElementById('globalSchoolYearSelect').value = db.currentSchoolYear;
       }
-      renderAuthHeader();
-      renderPublicBooks();
-      renderReaderProfile();
-      renderAdminStats();
-      renderAdminBooks();
-      renderAdminUsers();
-      renderAdminBorrows();
-      renderPosScannerStation();
-      updateAdminUIPermissions();
+      [
+        renderAuthHeader,
+        renderPublicBooks,
+        renderReaderProfile,
+        renderAdminStats,
+        renderAdminBooks,
+        renderAdminUsers,
+        renderAdminBorrows,
+        renderPosScannerStation,
+        updateAdminUIPermissions
+      ].forEach(fn => {
+        try { fn(); } catch (err) { console.error('Lỗi render:', fn.name, err); }
+      });
 
       // --- BỔ SUNG: Cập nhật thống kê Footer tự động ---
       if (document.getElementById('footerStatUsers')) {
