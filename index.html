@@ -2509,11 +2509,167 @@
         .replace(/[<>]/g, c => (c === '<' ? '‹' : '›'));
     }
 
+    const READER_AUTH_KEY = 'SMARTLIB_READER_CRED';
+    let publicStatsCache = { totalBooks: 0, totalCopies: 0, totalReaders: 0, totalBorrows: 0 };
+    let pendingSupaStaffAuth = null;
+
+    function getSavedReaderCred() {
+      try {
+        const raw = localStorage.getItem(READER_AUTH_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+    function setSavedReaderCred(cred) {
+      try {
+        if (cred) localStorage.setItem(READER_AUTH_KEY, JSON.stringify(cred));
+        else localStorage.removeItem(READER_AUTH_KEY);
+      } catch (e) {}
+    }
+
+    function mapBookFromDB(row) {
+      if (!row) return null;
+      return {
+        id: Number(row.id),
+        code: cleanNullText(row.code),
+        title: cleanNullText(row.title),
+        author: cleanNullText(row.author),
+        category: cleanNullText(row.category, 'Chưa phân loại'),
+        publisher: cleanNullText(row.publisher),
+        shelf: cleanNullText(row.shelf),
+        total: Number(row.total) || 0,
+        available: Number(row.available) || 0,
+        featured: Boolean(row.featured),
+        desc: cleanNullText(row.description ?? row.desc),
+        publishYear: cleanNullText(row.publish_year ?? row.publishYear),
+        pages: cleanNullText(row.pages)
+      };
+    }
+
+    function mapBookToDB(b) {
+      const total = Math.max(0, Number(b.total) || 0);
+      const available = Math.min(total, Math.max(0, Number(b.available) || 0));
+      return {
+        code: sanitizeText(b.code).toUpperCase(),
+        title: sanitizeText(b.title),
+        author: sanitizeText(b.author || ''),
+        category: sanitizeText(b.category || 'Chưa phân loại'),
+        publisher: sanitizeText(b.publisher || ''),
+        shelf: sanitizeText(b.shelf || ''),
+        total,
+        available,
+        featured: Boolean(b.featured),
+        description: sanitizeText(b.desc || ''),
+        publish_year: sanitizeText(b.publishYear || ''),
+        pages: sanitizeText(b.pages || '')
+      };
+    }
+
+    function mapReaderFromDB(row) {
+      if (!row) return null;
+      return {
+        id: Number(row.id),
+        cardCode: cleanNullText(row.card_code ?? row.cardCode),
+        fullName: cleanNullText(row.full_name ?? row.fullName),
+        gender: cleanNullText(row.gender, 'Nam'),
+        birthDate: cleanNullText(row.birth_date ?? row.birthDate),
+        group: cleanNullText(row.group_name ?? row.group),
+        email: cleanNullText(row.email),
+        phone: cleanNullText(row.phone),
+        password: cleanNullText(row.password_hash ?? row.password, '123456'),
+        status: row.status === 'locked' ? 'locked' : 'active',
+        schoolYear: cleanNullText(row.school_year ?? row.schoolYear, '2026-2027'),
+        userType: cleanNullText(row.user_type ?? row.userType, ''),
+        classesHistory: row.classes_history || row.classesHistory || {}
+      };
+    }
+
+    function mapReaderToDB(u) {
+      return {
+        card_code: cleanNullText(u.cardCode).toUpperCase(),
+        full_name: sanitizeText(u.fullName),
+        gender: cleanNullText(u.gender, 'Nam'),
+        birth_date: cleanNullText(u.birthDate),
+        group_name: sanitizeText(u.group || ''),
+        email: sanitizeText(u.email || ''),
+        phone: sanitizeText(u.phone || ''),
+        password_hash: u.password && String(u.password).startsWith('sha256$') ? u.password : hashPassword(u.password || '123456'),
+        status: u.status === 'locked' ? 'locked' : 'active',
+        school_year: cleanNullText(u.schoolYear, '2026-2027'),
+        user_type: u.userType || getUserType(u),
+        classes_history: u.classesHistory || {}
+      };
+    }
+
+    function mapBorrowFromDB(row) {
+      if (!row) return null;
+      return {
+        id: Number(row.id),
+        ticketCode: cleanNullText(row.ticket_code ?? row.ticketCode),
+        userId: Number(row.reader_id ?? row.userId),
+        bookId: Number(row.book_id ?? row.bookId),
+        schoolYear: cleanNullText(row.school_year ?? row.schoolYear, '2026-2027'),
+        borrowDate: cleanNullText(row.borrow_date ?? row.borrowDate),
+        dueDate: cleanNullText(row.due_date ?? row.dueDate),
+        returnDate: row.return_date ?? row.returnDate ?? null,
+        status: cleanNullText(row.status, 'borrowing'),
+        renewed: Boolean(row.renewed),
+        processedBy: cleanNullText(row.processed_by_name ?? row.processedBy),
+        returnedBy: cleanNullText(row.returned_by_name ?? row.returnedBy)
+      };
+    }
+
+    function mapStaffFromDB(row) {
+      if (!row) return null;
+      return {
+        id: Number(row.id),
+        authUserId: row.auth_user_id || null,
+        username: cleanNullText(row.username),
+        fullName: cleanNullText(row.full_name ?? row.fullName),
+        email: cleanNullText(row.email),
+        phone: cleanNullText(row.phone),
+        role: row.role || 'librarian',
+        roleTitle: cleanNullText(row.role_title, row.role === 'super_admin' ? 'Quản Trị Trưởng' : 'Thủ thư'),
+        status: row.status === 'locked' ? 'locked' : 'active',
+        permissions: row.permissions || {}
+      };
+    }
+
+    async function fetchAllRows(table, orderCol = 'id', ascending = true) {
+      const PAGE_SIZE = 1000;
+      let all = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabaseClient
+          .from(table)
+          .select('*')
+          .order(orderCol, { ascending })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all = all.concat(data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      return all;
+    }
+
+    async function upsertInChunks(table, rows, conflictCol, chunkSize = 400) {
+      for (let i = 0; i < rows.length; i += chunkSize) {
+        const chunk = rows.slice(i, i + chunkSize);
+        const { error } = await supabaseClient.from(table).upsert(chunk, { onConflict: conflictCol });
+        if (error) throw error;
+      }
+    }
+
     // Chữ ký phiên đăng nhập chống sửa quyền role='admin' hoặc nâng quyền Thủ thư qua F12
     function computeSessionSignature(userObj, dbRef) {
       const targetDb = dbRef || db;
       if (!userObj || !targetDb) return '';
       if (userObj.role === 'admin') {
+        if (userObj.authUserId) {
+          const permStr = JSON.stringify(userObj.permissions || {});
+          return sha256Hex(`SIG_SUPA_STAFF::${userObj.authUserId}::${userObj.isSuperAdmin ? 'SA' : 'LIB'}::${permStr}`);
+        }
         if (userObj.isStaff) {
           const staff = (targetDb.staffAccounts || []).find(s => s.id === userObj.staffId || String(s.username).toUpperCase() === String(userObj.username).toUpperCase());
           if (!staff || staff.status === 'locked') return 'INVALID_STAFF_SIG';
@@ -2523,6 +2679,10 @@
         const adminPassHash = hashPassword(targetDb.adminAccount?.password || 'admin123');
         return sha256Hex(`SIG_SUPER_ADMIN::${targetDb.adminAccount?.username || 'ADMIN'}::${adminPassHash}`);
       } else {
+        const cred = getSavedReaderCred();
+        if (cred && String(cred.cardCode).toUpperCase() === String(userObj.cardCode).toUpperCase()) {
+          return sha256Hex(`SIG_READER_RPC::${userObj.cardCode}::${cred.passHash}`);
+        }
         const found = (targetDb.users || []).find(u => u.id === userObj.id || u.cardCode === userObj.cardCode);
         const readerPassHash = hashPassword(found ? found.password : '123456');
         return sha256Hex(`SIG_READER::${userObj.cardCode}::${readerPassHash}`);
@@ -2546,12 +2706,11 @@
       parsed.adminAccount.fullName = sanitizeText(parsed.adminAccount.fullName || 'Quản Trị');
       parsed.adminAccount.email = sanitizeText(parsed.adminAccount.email || 'longnv@pct.edu.vn');
       if (parsed.adminAccount.twoFactorEnabled === undefined) parsed.adminAccount.twoFactorEnabled = true;
-      parsed.productionMode = true;
+      if (parsed.productionMode === undefined) parsed.productionMode = true;
 
       const defaultHash = hashPassword('123456');
       parsed.users = (parsed.users || []).map(u => {
         let p = String(u.password || '').trim();
-        // Tự động sửa chữa: Nếu mật khẩu là rỗng, khoảng trắng, hoặc là hash chuỗi rỗng từ Excel -> Phục hồi về hash 123456
         if (!p || p === EMPTY_PASSWORD_HASH || p === '123456' || p === '********' || p === 'null' || p === 'undefined') {
           p = defaultHash;
         } else if (!p.startsWith('sha256$')) {
@@ -2625,53 +2784,49 @@
 
     async function saveDB(changedSection = 'ALL') {
       migrateSecurityDB(db);
-      const toStore = {
-        currentSchoolYear: db.currentSchoolYear,
-        finePerDay: db.finePerDay,
-        productionMode: Boolean(db.productionMode),
-        adminAccount: db.adminAccount,
-        staffAccounts: db.staffAccounts || [],
-        books: db.books,
-        users: db.users,
-        borrows: db.borrows
-      };
+      const toStore = isCloudConnected
+        ? {
+            currentSchoolYear: db.currentSchoolYear,
+            finePerDay: db.finePerDay,
+            productionMode: Boolean(db.productionMode),
+            adminAccount: { ...db.adminAccount, password: '' },
+            books: db.books.slice(0, 500),
+            users: [],
+            borrows: []
+          }
+        : {
+            currentSchoolYear: db.currentSchoolYear,
+            finePerDay: db.finePerDay,
+            productionMode: Boolean(db.productionMode),
+            adminAccount: db.adminAccount,
+            staffAccounts: db.staffAccounts || [],
+            books: db.books,
+            users: db.users,
+            borrows: db.borrows
+          };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
       } catch (e) {
         if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
-          console.warn('SmartLib: Bộ nhớ đệm localStorage đã đầy (>5MB). Dữ liệu vẫn sẽ được đồng bộ trực tiếp lên Supabase Cloud.');
+          console.warn('SmartLib: Bộ nhớ đệm localStorage đã đầy (>5MB). Dữ liệu vẫn được lưu trên Supabase Cloud.');
         }
       }
       renderAll();
 
-      if (isCloudConnected && supabaseClient) {
+      if (isCloudConnected && supabaseClient && (changedSection === 'ALL' || changedSection === 'settings')) {
         try {
-          const rowsToUpsert = [];
-          const isValidAdminSession = db.currentUser && db.currentUser.role === 'admin' && verifySessionIntegrity(db.currentUser, db);
-          if ((changedSection === 'ALL' || changedSection === 'settings') && isValidAdminSession) {
-            rowsToUpsert.push({
-              collection_key: 'settings',
-              payload: { 
-                currentSchoolYear: db.currentSchoolYear, 
-                finePerDay: db.finePerDay, 
-                adminAccount: db.adminAccount,
-                staffAccounts: db.staffAccounts || []
-              },
+          const isSuperAdmin = db.currentUser && db.currentUser.role === 'admin' && db.currentUser.isSuperAdmin && verifySessionIntegrity(db.currentUser, db);
+          if (isSuperAdmin) {
+            const { error } = await supabaseClient.from('library_settings').upsert({
+              id: 1,
+              current_school_year: db.currentSchoolYear || '2026-2027',
+              fine_per_day: Number(db.finePerDay) || 5000,
+              production_mode: Boolean(db.productionMode),
+              admin_email: db.adminAccount?.email || 'vulongdng@gmail.com',
+              two_factor_enabled: db.adminAccount?.twoFactorEnabled !== false,
               updated_at: new Date().toISOString()
-            });
-          }
-          if (changedSection === 'ALL' || changedSection === 'books') {
-            rowsToUpsert.push({ collection_key: 'books', payload: db.books, updated_at: new Date().toISOString() });
-          }
-          if (changedSection === 'ALL' || changedSection === 'users') {
-            rowsToUpsert.push({ collection_key: 'users', payload: db.users, updated_at: new Date().toISOString() });
-          }
-          if (changedSection === 'ALL' || changedSection === 'borrows') {
-            rowsToUpsert.push({ collection_key: 'borrows', payload: db.borrows, updated_at: new Date().toISOString() });
-          }
-          if (rowsToUpsert.length > 0) {
-            const { error } = await supabaseClient.from('smartlib_cloud').upsert(rowsToUpsert, { onConflict: 'collection_key' });
-            if (error) console.error('Lỗi đồng bộ Supabase:', error);
+            }, { onConflict: 'id' });
+            if (error) console.error('Lỗi cập nhật library_settings:', error);
           }
         } catch (err) {
           console.error('Lỗi kết nối Cloud:', err);
@@ -2679,17 +2834,78 @@
       }
     }
 
+    async function restoreAuthSessionFromSupabase() {
+      if (!supabaseClient) return;
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+          const { data: staffRow, error } = await supabaseClient
+            .from('staff_accounts')
+            .select('*')
+            .eq('auth_user_id', session.user.id)
+            .maybeSingle();
+
+          if (!error && staffRow && staffRow.status === 'active') {
+            const isSuper = staffRow.role === 'super_admin';
+            saveSessionUser({
+              role: 'admin',
+              isSuperAdmin: isSuper,
+              isStaff: !isSuper,
+              authUserId: session.user.id,
+              staffId: staffRow.id,
+              username: staffRow.username,
+              fullName: staffRow.full_name,
+              roleTitle: staffRow.role_title || (isSuper ? 'Quản Trị Trưởng' : 'Thủ thư'),
+              permissions: staffRow.permissions || {}
+            });
+            return;
+          }
+        }
+
+        // Nếu không phải phiên Staff Auth -> kiểm tra phiên Độc giả
+        const readerCred = getSavedReaderCred();
+        if (readerCred && readerCred.cardCode && readerCred.passHash) {
+          const { data: res, error } = await supabaseClient.rpc('reader_login_and_fetch', {
+            p_card_code: readerCred.cardCode,
+            p_password_hash: readerCred.passHash,
+            p_plain_is_default: Boolean(readerCred.isDefaultInput)
+          });
+          if (!error && res && res.success) {
+            db.users = [res.reader];
+            db.borrows = res.borrows || [];
+            saveSessionUser({
+              role: 'reader',
+              id: res.reader.id,
+              cardCode: res.reader.cardCode,
+              fullName: res.reader.fullName
+            });
+            return;
+          } else {
+            setSavedReaderCred(null);
+            saveSessionUser(null);
+          }
+        } else if (db.currentUser && db.currentUser.authUserId) {
+          saveSessionUser(null);
+        }
+      } catch (err) {
+        console.error('Lỗi khôi phục phiên đăng nhập:', err);
+      }
+    }
+
     async function initCloudConnection() {
       const badge = document.getElementById('cloudStatusBadge');
       if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey || !window.supabase) {
         isCloudConnected = false;
-        badge.className = 'inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200';
-        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Chế độ Offline (Local)';
+        if (badge) {
+          badge.className = 'inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200';
+          badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Chế độ Offline (Local)';
+        }
         return;
       }
 
       try {
         supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+        await restoreAuthSessionFromSupabase();
         await syncFromCloud(false);
       } catch (err) {
         console.error('Không thể khởi tạo Supabase:', err);
@@ -2701,54 +2917,105 @@
       if (!supabaseClient) return;
 
       try {
-        const { data, error } = await supabaseClient.from('smartlib_cloud').select('collection_key, payload');
-        if (error) throw error;
+        // 1. Đọc cấu hình công khai + Kho sách (RLS cho phép mọi người xem sách)
+        const [settingsRes, bookRows, statsRes, sessionRes] = await Promise.all([
+          supabaseClient.from('library_settings').select('*').eq('id', 1).maybeSingle(),
+          fetchAllRows('books', 'id', true),
+          supabaseClient.rpc('get_public_library_stats'),
+          supabaseClient.auth.getSession()
+        ]);
+
+        if (settingsRes.error) throw settingsRes.error;
 
         isCloudConnected = true;
-        badge.className = 'inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
-        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Cloud: Đã kết nối';
-
-        if (!data || data.length === 0) {
-          await saveDB('ALL');
-          return;
+        if (badge) {
+          badge.className = 'inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+          badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Cloud: Đã kết nối (RLS)';
         }
 
-        data.forEach(row => {
-          if (row.collection_key === 'books' && Array.isArray(row.payload)) db.books = row.payload;
-          if (row.collection_key === 'users' && Array.isArray(row.payload)) db.users = row.payload;
-          if (row.collection_key === 'borrows' && Array.isArray(row.payload)) db.borrows = row.payload;
-          if (row.collection_key === 'settings' && row.payload) {
-            db.finePerDay = row.payload.finePerDay ?? db.finePerDay;
-            db.adminAccount = row.payload.adminAccount ?? db.adminAccount;
-            if (Array.isArray(row.payload.staffAccounts)) db.staffAccounts = row.payload.staffAccounts;
-            if (row.payload.productionMode !== undefined) db.productionMode = Boolean(row.payload.productionMode);
+        if (settingsRes.data) {
+          db.currentSchoolYear = settingsRes.data.current_school_year || db.currentSchoolYear || '2026-2027';
+          db.finePerDay = settingsRes.data.fine_per_day ?? db.finePerDay;
+          db.productionMode = settingsRes.data.production_mode !== undefined ? Boolean(settingsRes.data.production_mode) : db.productionMode;
+          if (!db.adminAccount) db.adminAccount = {};
+          db.adminAccount.email = settingsRes.data.admin_email || db.adminAccount.email || 'vulongdng@gmail.com';
+          db.adminAccount.twoFactorEnabled = settingsRes.data.two_factor_enabled !== undefined ? Boolean(settingsRes.data.two_factor_enabled) : true;
+        }
+
+        db.books = (bookRows || []).map(mapBookFromDB).filter(Boolean);
+
+        if (!statsRes.error && statsRes.data) {
+          publicStatsCache = {
+            totalBooks: Number(statsRes.data.totalBooks) || db.books.length,
+            totalCopies: Number(statsRes.data.totalCopies) || 0,
+            totalReaders: Number(statsRes.data.totalReaders) || 0,
+            totalBorrows: Number(statsRes.data.totalBorrows) || 0
+          };
+        }
+
+        const session = sessionRes?.data?.session || null;
+        if (session && session.user && db.currentUser && db.currentUser.role === 'admin') {
+          // 2A. Đang đăng nhập Admin / Thủ thư (Supabase Auth) -> Tải đủ bảng readers, borrows, staff_accounts
+          const [readerRows, borrowRows] = await Promise.all([
+            fetchAllRows('readers', 'id', true),
+            fetchAllRows('borrows', 'id', false)
+          ]);
+          db.users = (readerRows || []).map(mapReaderFromDB).filter(Boolean);
+          db.borrows = (borrowRows || []).map(mapBorrowFromDB).filter(Boolean);
+
+          if (db.currentUser.isSuperAdmin) {
+            const { data: staffRows } = await supabaseClient.from('staff_accounts').select('*').order('id', { ascending: true });
+            if (Array.isArray(staffRows)) {
+              const supaAdminRow = staffRows.find(s => s.role === 'super_admin');
+              if (supaAdminRow) {
+                db.adminAccount.username = supaAdminRow.username || 'ADMIN';
+                db.adminAccount.fullName = supaAdminRow.full_name || 'Quản Trị';
+                db.adminAccount.email = supaAdminRow.email || db.adminAccount.email;
+              }
+              db.staffAccounts = staffRows.filter(s => s.role !== 'super_admin').map(mapStaffFromDB).filter(Boolean);
+            }
+          } else {
+            db.staffAccounts = [];
           }
-        });
+        } else if (db.currentUser && db.currentUser.role === 'reader') {
+          // 2B. Đang đăng nhập Độc giả -> Chỉ đồng bộ đúng hồ sơ & phiếu mượn của độc giả này
+          const cred = getSavedReaderCred();
+          if (cred && cred.cardCode && cred.passHash) {
+            const { data: rData } = await supabaseClient.rpc('reader_login_and_fetch', {
+              p_card_code: cred.cardCode,
+              p_password_hash: cred.passHash,
+              p_plain_is_default: Boolean(cred.isDefaultInput)
+            });
+            if (rData && rData.success) {
+              db.users = [rData.reader];
+              db.borrows = rData.borrows || [];
+            }
+          }
+        } else {
+          // 2C. Khách vãng lai -> Không tải dữ liệu cá nhân học sinh & phiếu mượn
+          db.users = [];
+          db.borrows = [];
+          db.staffAccounts = [];
+        }
 
         migrateSecurityDB(db);
         if (db.currentUser) {
           saveSessionUser(db.currentUser);
         }
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            currentSchoolYear: db.currentSchoolYear,
-            finePerDay: db.finePerDay,
-            productionMode: Boolean(db.productionMode),
-            adminAccount: db.adminAccount,
-            staffAccounts: db.staffAccounts || [],
-            books: db.books,
-            users: db.users,
-            borrows: db.borrows
-          }));
-        } catch (e) {}
 
         renderAll();
-        if (showNotification) showToast(`Đã đồng bộ từ Cloud (${db.books.length} sách, ${db.users.length} độc giả)!`);
+        if (showNotification) {
+          const readerCount = db.users.length || publicStatsCache.totalReaders;
+          showToast(`Đã đồng bộ từ Cloud (${db.books.length} sách, ${readerCount} độc giả)!`);
+        }
       } catch (err) {
+        console.error('Lỗi syncFromCloud:', err);
         isCloudConnected = false;
-        badge.className = 'inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200';
-        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Lỗi kết nối Cloud';
-        if (showNotification) showNoticeModal('Lỗi kết nối Cloud', 'Không thể tải dữ liệu từ Supabase! Hãy kiểm tra lại URL, Key và bảng smartlib_cloud.');
+        if (badge) {
+          badge.className = 'inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200';
+          badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Lỗi kết nối Cloud';
+        }
+        if (showNotification) showNoticeModal('Lỗi kết nối Cloud', 'Không thể tải dữ liệu từ Supabase! Hãy kiểm tra lại URL, Key và cấu hình RLS.');
       }
     }
 
@@ -2773,13 +3040,29 @@
     }
 
     async function pushLocalDBToCloud() {
-      if (!isCloudConnected) {
+      if (!isCloudConnected || !supabaseClient) {
         showNoticeModal('Chưa kết nối Cloud', 'Vui lòng nhập URL, Key và bấm "Lưu & Kết nối" trước!');
         return;
       }
-      await saveDB('ALL');
-      closeCloudConfigModal();
-      showToast(`Đã đẩy toàn bộ ${db.books.length} sách và ${db.users.length} độc giả lên Cloud!`);
+      if (!db.currentUser || db.currentUser.role !== 'admin') {
+        showNoticeModal('Yêu cầu quyền Quản trị', 'Vui lòng đăng nhập tài khoản Admin trước khi đồng bộ lên Cloud!');
+        return;
+      }
+      try {
+        showToast('Đang đồng bộ dữ liệu theo lô lên Supabase...');
+        if (db.books.length > 0) {
+          await upsertInChunks('books', db.books.map(mapBookToDB), 'code');
+        }
+        if (db.users.length > 0) {
+          await upsertInChunks('readers', db.users.map(mapReaderToDB), 'card_code');
+        }
+        await saveDB('settings');
+        await syncFromCloud(false);
+        closeCloudConfigModal();
+        showToast(`Đã đồng bộ ${db.books.length} sách và ${db.users.length} độc giả lên Cloud!`);
+      } catch (err) {
+        showNoticeModal('Lỗi đồng bộ Cloud', err.message || 'Không thể đẩy dữ liệu lên Supabase!');
+      }
     }
 
     function showToast(msg) {
@@ -3087,72 +3370,146 @@
       document.getElementById('loginPassword').value = pass;
     }
 
+    async function finalizeSupaAdminLogin(authUser, staffRow) {
+      const isSuper = staffRow.role === 'super_admin';
+      saveSessionUser({
+        role: 'admin',
+        isSuperAdmin: isSuper,
+        isStaff: !isSuper,
+        authUserId: authUser.id,
+        staffId: staffRow.id,
+        username: staffRow.username,
+        fullName: staffRow.full_name,
+        roleTitle: staffRow.role_title || (isSuper ? 'Quản Trị Trưởng' : 'Thủ thư'),
+        permissions: staffRow.permissions || {},
+        twoFactorVerified: true
+      });
+      await syncFromCloud(false);
+      closeAuthModal();
+      switchView('admin-dashboard');
+      showToast(isSuper
+        ? 'Đăng nhập quyền Quản trị trưởng (Admin) thành công!'
+        : `Xin chào ${staffRow.full_name}! Đăng nhập quyền ${staffRow.role_title || 'Thủ thư'} thành công.`);
+    }
+
     async function handleLoginSubmit(e) {
       e.preventDefault();
-      if (isCloudConnected) await syncFromCloud(false);
-
       const inputUser = document.getElementById('loginUsername').value.trim();
       const inputPass = document.getElementById('loginPassword').value.trim();
 
-      if (inputUser.toUpperCase() === String(db.adminAccount.username || 'ADMIN').toUpperCase() && verifyPassword(inputPass, db.adminAccount.password)) {
-        if (db.adminAccount.twoFactorEnabled !== false) {
-          const trustStatus = await checkTrustedAdminDeviceAndIP();
-          if (!trustStatus.trusted) {
-            showToast(`⚠️ Phát hiện ${trustStatus.reason} — Yêu cầu xác thực OTP!`);
-            await initiateAdmin2FAStep();
+      if (!inputUser || !inputPass) {
+        showNoticeModal('Thiếu thông tin', 'Vui lòng nhập đầy đủ tài khoản và mật khẩu!');
+        return;
+      }
+
+      // ===== CHẾ ĐỘ CLOUD SUPABASE (RLS + SUPABASE AUTH + ATOMIC RPC) =====
+      if (isCloudConnected && supabaseClient) {
+        try {
+          // 1. Kiểm tra xem có phải tài khoản Quản trị / Thủ thư không
+          const { data: staffEmail } = await supabaseClient.rpc('resolve_staff_login_email', { p_identifier: inputUser });
+
+          if (staffEmail) {
+            const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({
+              email: staffEmail,
+              password: inputPass
+            });
+
+            if (authErr || !authData?.user) {
+              showNoticeModal('Đăng nhập không thành công', 'Sai mật khẩu tài khoản Quản trị / Thủ thư! Vui lòng kiểm tra lại.');
+              return;
+            }
+
+            const { data: staffRow, error: staffErr } = await supabaseClient
+              .from('staff_accounts')
+              .select('*')
+              .eq('auth_user_id', authData.user.id)
+              .maybeSingle();
+
+            if (staffErr || !staffRow) {
+              await supabaseClient.auth.signOut();
+              showNoticeModal('Lỗi phân quyền', 'Tài khoản Auth này chưa được liên kết trong bảng staff_accounts.');
+              return;
+            }
+            if (staffRow.status === 'locked') {
+              await supabaseClient.auth.signOut();
+              showNoticeModal('Tài khoản đã bị khóa', 'Tài khoản thủ thư của bạn hiện đang bị tạm khóa. Vui lòng liên hệ Quản trị trưởng!');
+              return;
+            }
+
+            setSavedReaderCred(null);
+            if (staffRow.role === 'super_admin' && db.adminAccount.twoFactorEnabled !== false) {
+              const trustStatus = await checkTrustedAdminDeviceAndIP();
+              if (!trustStatus.trusted) {
+                pendingSupaStaffAuth = { authUser: authData.user, staffRow };
+                showToast(`⚠️ Phát hiện ${trustStatus.reason} — Yêu cầu xác thực OTP!`);
+                await initiateAdmin2FAStep(staffRow.email || db.adminAccount.email);
+                return;
+              }
+            }
+
+            await finalizeSupaAdminLogin(authData.user, staffRow);
             return;
           }
+
+          // 2. Đăng nhập Độc giả qua RPC bảo mật (Không tải 4.000 học sinh xuống trình duyệt)
+          const passHash = hashPassword(inputPass);
+          const isDefInput = inputPass === '123456';
+          const { data: res, error: rpcErr } = await supabaseClient.rpc('reader_login_and_fetch', {
+            p_card_code: inputUser,
+            p_password_hash: passHash,
+            p_plain_is_default: isDefInput
+          });
+
+          if (rpcErr || !res || !res.success) {
+            showNoticeModal('Đăng nhập không thành công', res?.error || 'Sai Mã thẻ/Email hoặc Mật khẩu!');
+            return;
+          }
+
+          setSavedReaderCred({ cardCode: res.reader.cardCode, passHash, isDefaultInput: isDefInput });
+          db.users = [res.reader];
+          db.borrows = res.borrows || [];
+
+          if (res.isDefaultPassword) {
+            closeAuthModal();
+            openFirstLoginModal(res.reader);
+            return;
+          }
+
+          saveSessionUser({ role: 'reader', id: res.reader.id, cardCode: res.reader.cardCode, fullName: res.reader.fullName });
+          const destination = pendingTargetView || 'reader-home';
+          closeAuthModal();
+          renderAll();
+          switchView(destination);
+          showToast(`Xin chào độc giả ${res.reader.fullName}!`);
+          return;
+        } catch (err) {
+          console.error('Lỗi đăng nhập Cloud:', err);
+          showNoticeModal('Lỗi kết nối', 'Không thể kết nối máy chủ xác thực lúc này. Vui lòng thử lại!');
+          return;
         }
+      }
+
+      // ===== CHẾ ĐỘ OFFLINE (LOCAL FALLBACK) =====
+      if (inputUser.toUpperCase() === String(db.adminAccount.username || 'ADMIN').toUpperCase() && verifyPassword(inputPass, db.adminAccount.password)) {
         saveSessionUser({ role: 'admin', isSuperAdmin: true, isStaff: false, username: db.adminAccount.username, fullName: db.adminAccount.fullName, twoFactorVerified: true });
         closeAuthModal();
         switchView('admin-dashboard');
-        showToast('Đăng nhập quyền Quản trị trưởng (Admin) thành công!');
+        showToast('Đăng nhập quyền Quản trị trưởng (Offline) thành công!');
         return;
       }
 
-      // 2. Kiểm tra tài khoản Thủ thư phụ (Staff)
-      const foundStaff = (db.staffAccounts || []).find(s => 
-        (String(s.username).trim().toUpperCase() === inputUser.toUpperCase() || 
-         (s.email && s.email.trim().toLowerCase() === inputUser.toLowerCase())) && 
-        verifyPassword(inputPass, s.password)
-      );
-      if (foundStaff) {
-        if (foundStaff.status === 'locked') {
-          showNoticeModal('Tài khoản đã bị khóa', 'Tài khoản thủ thư của bạn hiện đang bị tạm khóa. Vui lòng liên hệ Quản trị trưởng (Super Admin)!');
-          return;
-        }
-        saveSessionUser({
-          role: 'admin',
-          isSuperAdmin: false,
-          isStaff: true,
-          staffId: foundStaff.id,
-          username: foundStaff.username,
-          fullName: foundStaff.fullName,
-          roleTitle: foundStaff.roleTitle || 'Thủ thư',
-          permissions: foundStaff.permissions || {}
-        });
-        closeAuthModal();
-        switchView('admin-dashboard');
-        showToast(`Xin chào ${foundStaff.fullName}! Đăng nhập quyền ${foundStaff.roleTitle || 'Thủ thư'} thành công.`);
-        return;
-      }
-
-      // 3. Kiểm tra tài khoản Độc giả (Học sinh & Giáo viên)
       const foundReader = db.users.find(u =>
         (String(u.cardCode).toLowerCase() === inputUser.toLowerCase() || (u.email && u.email.toLowerCase() === inputUser.toLowerCase())) &&
         verifyPassword(inputPass, u.password || '123456')
       );
-
       if (!foundReader) {
         showNoticeModal('Đăng nhập không thành công', 'Sai Mã thẻ/Tài khoản hoặc Mật khẩu! Vui lòng kiểm tra lại.');
         return;
       }
-
       if (foundReader.status === 'locked') {
         showNoticeModal('Thẻ đang bị khóa', 'Thẻ thư viện của bạn hiện đang bị khóa. Vui lòng liên hệ Thủ thư!');
         return;
       }
-      // Bắt buộc đổi mật khẩu nếu bạn đọc vẫn đang dùng mật khẩu mặc định (123456)
       if (isDefaultReaderPassword(foundReader.password)) {
         closeAuthModal();
         openFirstLoginModal(foundReader);
@@ -3167,14 +3524,47 @@
 
     async function handleRegisterSubmit(e) {
       e.preventDefault();
-      if (isCloudConnected) await syncFromCloud(false);
-
       const cardCode = document.getElementById('regCardCode').value.trim().toUpperCase();
       const group = document.getElementById('regGroup').value.trim().replace(/^lớp\s+/i, '');
       const fullName = document.getElementById('regFullName').value.trim();
       const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value.trim();
       const activeYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
+
+      if (password.length < 6) {
+        showNoticeModal('Mật khẩu quá ngắn', 'Mật khẩu phải có tối thiểu 6 ký tự!');
+        return;
+      }
+
+      if (isCloudConnected && supabaseClient) {
+        try {
+          const passHash = hashPassword(password);
+          const { data: res, error } = await supabaseClient.rpc('reader_register_card', {
+            p_card_code: cardCode,
+            p_full_name: fullName,
+            p_group_name: group,
+            p_email: email,
+            p_password_hash: passHash,
+            p_school_year: activeYear
+          });
+          if (error || !res || !res.success) {
+            showNoticeModal('Không thể đăng ký', res?.error || error?.message || 'Mã thẻ đã tồn tại hoặc dữ liệu không hợp lệ!');
+            return;
+          }
+          setSavedReaderCred({ cardCode: res.reader.cardCode, passHash, isDefaultInput: false });
+          db.users = [res.reader];
+          db.borrows = [];
+          saveSessionUser({ role: 'reader', id: res.reader.id, cardCode: res.reader.cardCode, fullName: res.reader.fullName });
+          closeAuthModal();
+          renderAll();
+          switchView('reader-profile');
+          showToast(`Đăng ký thẻ ${cardCode} thành công!`);
+          return;
+        } catch (err) {
+          showNoticeModal('Lỗi đăng ký', err.message || 'Không thể kết nối máy chủ!');
+          return;
+        }
+      }
 
       if (db.users.some(u => String(u.cardCode).toUpperCase() === cardCode)) {
         showNoticeModal('Trùng mã thẻ', 'Mã thẻ này đã tồn tại trên hệ thống! Vui lòng chọn mã thẻ khác.');
@@ -3200,12 +3590,22 @@
       showToast(`Đăng ký thẻ ${cardCode} thành công!`);
     }
 
-    function handleLogout() {
+    async function handleLogout() {
       if (isVisualEditMode) toggleVisualEditText();
       const visualToolbar = document.getElementById('visualEditorToolbar');
       if (visualToolbar) visualToolbar.style.display = 'none';
 
+      pendingSupaStaffAuth = null;
+      setSavedReaderCred(null);
+      if (isCloudConnected && supabaseClient) {
+        try { await supabaseClient.auth.signOut(); } catch (e) {}
+        db.users = [];
+        db.borrows = [];
+        db.staffAccounts = [];
+      }
+
       saveSessionUser(null);
+      renderAll();
       switchView('reader-home');
       showToast('Đã đăng xuất khỏi hệ thống.');
     }
@@ -3244,19 +3644,39 @@ let pendingFirstLoginUser = null;
         return;
       }
 
-      const userObj = db.users.find(u => u.id === pendingFirstLoginUser.id);
-      if (userObj) {
-        userObj.password = hashPassword(newPass);
-        if (email) userObj.email = sanitizeText(email);
-        if (phone) userObj.phone = sanitizeText(phone);
-        userObj.firstLogin = false;
-        
-        saveSessionUser({ role: 'reader', id: userObj.id, cardCode: userObj.cardCode, fullName: userObj.fullName });
-        await saveDB('users');
+      const newHash = hashPassword(newPass);
+      if (isCloudConnected && supabaseClient) {
+        const cred = getSavedReaderCred() || { passHash: hashPassword('123456'), isDefaultInput: true };
+        const { data: res, error } = await supabaseClient.rpc('reader_update_profile', {
+          p_reader_id: pendingFirstLoginUser.id,
+          p_current_password_hash: cred.passHash,
+          p_plain_is_default: Boolean(cred.isDefaultInput),
+          p_new_password_hash: newHash,
+          p_email: email ? sanitizeText(email) : null,
+          p_phone: phone ? sanitizeText(phone) : null
+        });
+        if (error || !res || !res.success) {
+          showNoticeModal('Lỗi cập nhật', res?.error || 'Không thể lưu mật khẩu mới lên Cloud!');
+          return;
+        }
+        setSavedReaderCred({ cardCode: res.reader.cardCode, passHash: newHash, isDefaultInput: false });
+        db.users = [res.reader];
+        saveSessionUser({ role: 'reader', id: res.reader.id, cardCode: res.reader.cardCode, fullName: res.reader.fullName });
+      } else {
+        const userObj = db.users.find(u => u.id === pendingFirstLoginUser.id);
+        if (userObj) {
+          userObj.password = newHash;
+          if (email) userObj.email = sanitizeText(email);
+          if (phone) userObj.phone = sanitizeText(phone);
+          userObj.firstLogin = false;
+          saveSessionUser({ role: 'reader', id: userObj.id, cardCode: userObj.cardCode, fullName: userObj.fullName });
+          await saveDB('users');
+        }
       }
 
       document.getElementById('firstLoginModal').classList.add('hidden');
       pendingFirstLoginUser = null;
+      renderAll();
       switchView('reader-profile');
       showToast('Kích hoạt tài khoản và đổi mật khẩu thành công!');
     }
@@ -3272,8 +3692,26 @@ let pendingFirstLoginUser = null;
             showNoticeModal('Mật khẩu quá ngắn', 'Mật khẩu phải có ít nhất 6 ký tự!');
             return;
           }
-          if (userObj) {
-            userObj.password = hashPassword(newPass.trim());
+          const newHash = hashPassword(newPass.trim());
+          if (isCloudConnected && supabaseClient && userObj) {
+            const cred = getSavedReaderCred();
+            const { data: res, error } = await supabaseClient.rpc('reader_update_profile', {
+              p_reader_id: userObj.id,
+              p_current_password_hash: cred?.passHash || '',
+              p_plain_is_default: Boolean(cred?.isDefaultInput),
+              p_new_password_hash: newHash,
+              p_email: null,
+              p_phone: null
+            });
+            if (error || !res || !res.success) {
+              showNoticeModal('Lỗi đổi mật khẩu', res?.error || 'Không thể cập nhật mật khẩu trên Cloud!');
+              return;
+            }
+            setSavedReaderCred({ cardCode: userObj.cardCode, passHash: newHash, isDefaultInput: false });
+            saveSessionUser({ role: 'reader', id: userObj.id, cardCode: userObj.cardCode, fullName: userObj.fullName });
+            showToast('Đã mã hóa SHA-256 và cập nhật mật khẩu mới!');
+          } else if (userObj) {
+            userObj.password = newHash;
             saveSessionUser({ role: 'reader', id: userObj.id, cardCode: userObj.cardCode, fullName: userObj.fullName });
             await saveDB('users');
             showToast('Đã mã hóa SHA-256 và cập nhật mật khẩu mới!');
@@ -3303,12 +3741,30 @@ let pendingFirstLoginUser = null;
       const userObj = db.users.find(u => u.id === db.currentUser.id || u.cardCode === db.currentUser.cardCode);
       if (!userObj) return;
 
-      userObj.email = document.getElementById('profileEditEmail').value.trim();
-      userObj.phone = document.getElementById('profileEditPhone').value.trim();
-      
-      await saveDB('users'); 
+      const newEmail = sanitizeText(document.getElementById('profileEditEmail').value.trim());
+      const newPhone = sanitizeText(document.getElementById('profileEditPhone').value.trim());
+
+      if (isCloudConnected && supabaseClient) {
+        const cred = getSavedReaderCred();
+        const { data: res, error } = await supabaseClient.rpc('reader_update_profile', {
+          p_reader_id: userObj.id,
+          p_current_password_hash: cred?.passHash || '',
+          p_plain_is_default: Boolean(cred?.isDefaultInput),
+          p_new_password_hash: null,
+          p_email: newEmail,
+          p_phone: newPhone
+        });
+        if (error || !res || !res.success) {
+          showNoticeModal('Lỗi cập nhật', res?.error || 'Không thể lưu thông tin liên hệ!');
+          return;
+        }
+      }
+
+      userObj.email = newEmail;
+      userObj.phone = newPhone;
+      if (!isCloudConnected) await saveDB('users');
       closeUpdateProfileModal();
-      renderReaderProfile(); 
+      renderReaderProfile();
       showToast('Đã cập nhật thông tin liên hệ thành công!');
     }
 
@@ -3325,8 +3781,16 @@ let pendingFirstLoginUser = null;
             showNoticeModal('Mật khẩu không hợp lệ', 'Mật khẩu phải có ít nhất 6 ký tự!');
             return;
           }
-          u.password = hashPassword(newPass.trim());
-          await saveDB('users');
+          const newHash = hashPassword(newPass.trim());
+          if (isCloudConnected && supabaseClient) {
+            const { error } = await supabaseClient.from('readers').update({ password_hash: newHash }).eq('id', u.id);
+            if (error) {
+              showNoticeModal('Lỗi cập nhật', error.message || 'Không thể cấp lại mật khẩu trên Cloud!');
+              return;
+            }
+          }
+          u.password = newHash;
+          if (!isCloudConnected) await saveDB('users');
           showToast(`Đã mã hóa SHA-256 mật khẩu mới cho thẻ ${u.cardCode}!`);
         }
       );
@@ -3521,15 +3985,42 @@ let pendingFirstLoginUser = null;
         return;
       }
 
+      const dueDate = document.getElementById('onlineBorrowDueDate').value;
+      if (!dueDate) { showNoticeModal('Thiếu thông tin', 'Vui lòng chọn hạn trả dự kiến!'); return; }
+
+      const activeYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
+
+      if (isCloudConnected && supabaseClient) {
+        if (db.currentUser.role === 'reader') {
+          const cred = getSavedReaderCred();
+          const { data: res, error } = await supabaseClient.rpc('reader_borrow_online', {
+            p_reader_id: db.currentUser.id,
+            p_password_hash: cred?.passHash || '',
+            p_plain_is_default: Boolean(cred?.isDefaultInput),
+            p_book_id: selectedBookForBorrow.id,
+            p_due_date: dueDate,
+            p_school_year: activeYear
+          });
+          if (error || !res || !res.success) {
+            showNoticeModal('Không thể đặt mượn', res?.error || error?.message || 'Rất tiếc, cuốn sách này vừa hết bản trong kho!');
+            return;
+          }
+          const book = db.books.find(b => b.id === selectedBookForBorrow.id);
+          if (book) book.available = Number(res.remaining_available);
+          db.borrows.unshift(res.borrow);
+          renderAll();
+          closeBookDetailModal();
+          showToast(`Đã gửi phiếu đặt mượn ${res.borrow.ticketCode}! Chờ Thủ thư duyệt.`);
+          return;
+        }
+      }
+
       if (isCloudConnected) await syncFromCloud(false);
 
       let readerId = db.currentUser.id;
       if (db.currentUser.role === 'admin') {
         readerId = db.users[0]?.id;
       }
-
-      const dueDate = document.getElementById('onlineBorrowDueDate').value;
-      if (!dueDate) { showNoticeModal('Thiếu thông tin', 'Vui lòng chọn hạn trả dự kiến!'); return; }
 
       const book = db.books.find(b => b.id === selectedBookForBorrow.id);
       if (!book || book.available <= 0) { showNoticeModal('Hết sách', 'Rất tiếc, cuốn sách này vừa hết bản trong kho!'); return; }
@@ -3541,7 +4032,7 @@ let pendingFirstLoginUser = null;
         ticketCode,
         userId: readerId,
         bookId: book.id,
-        schoolYear: db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027',
+        schoolYear: activeYear,
         borrowDate: new Date().toISOString().split('T')[0],
         dueDate,
         returnDate: null,
@@ -3633,6 +4124,27 @@ let pendingFirstLoginUser = null;
     async function cancelPendingBorrow(borrowId) {
       const idx = db.borrows.findIndex(b => b.id === borrowId && b.status === 'pending');
       if (idx === -1) return;
+
+      if (isCloudConnected && supabaseClient && db.currentUser?.role === 'reader') {
+        const cred = getSavedReaderCred();
+        const { data: res, error } = await supabaseClient.rpc('reader_cancel_pending_borrow', {
+          p_reader_id: db.currentUser.id,
+          p_password_hash: cred?.passHash || '',
+          p_plain_is_default: Boolean(cred?.isDefaultInput),
+          p_borrow_id: borrowId
+        });
+        if (error || !res || !res.success) {
+          showNoticeModal('Không thể hủy phiếu', res?.error || error?.message || 'Lỗi kết nối Cloud!');
+          return;
+        }
+        const book = db.books.find(b => b.id === db.borrows[idx].bookId);
+        if (book) book.available = Math.min(book.total, book.available + 1);
+        db.borrows.splice(idx, 1);
+        renderAll();
+        showToast('Đã hủy phiếu đăng ký mượn online.');
+        return;
+      }
+
       const book = db.books.find(b => b.id === db.borrows[idx].bookId);
       if (book) book.available += 1;
       db.borrows.splice(idx, 1);
@@ -4040,6 +4552,19 @@ let pendingFirstLoginUser = null;
         'Xác nhận xóa hàng loạt',
         `Bạn có chắc chắn muốn xóa vĩnh viễn ${count} độc giả đã chọn khỏi hệ thống thư viện? Thao tác này không thể hoàn tác!`,
         async () => {
+          const idsToDelete = Array.from(selectedAdminUserIds).map(Number);
+          if (isCloudConnected && supabaseClient) {
+            try {
+              for (let i = 0; i < idsToDelete.length; i += 200) {
+                const chunk = idsToDelete.slice(i, i + 200);
+                const { error } = await supabaseClient.from('readers').delete().in('id', chunk);
+                if (error) throw error;
+              }
+            } catch (err) {
+              showNoticeModal('Lỗi xóa độc giả', err.message || 'Không thể xóa độc giả trên Cloud!');
+              return;
+            }
+          }
           db.users = db.users.filter(u => !selectedAdminUserIds.has(Number(u.id)));
           selectedAdminUserIds.clear();
           await saveDB('users');
@@ -4149,6 +4674,16 @@ let pendingFirstLoginUser = null;
             yearSelect.insertBefore(newOpt, yearSelect.lastElementChild);
           }
           if (yearSelect) yearSelect.value = toYear;
+
+          if (isCloudConnected && supabaseClient && db.users.length > 0) {
+            try {
+              showToast('Đang cập nhật lên lớp trên Supabase Cloud...');
+              await upsertInChunks('readers', db.users.map(mapReaderToDB), 'card_code');
+            } catch (err) {
+              showNoticeModal('Lỗi đồng bộ Cloud', err.message || 'Không thể lưu chuyển lớp lên Supabase!');
+              return;
+            }
+          }
 
           await saveDB('users');
           await saveDB('settings');
@@ -4570,7 +5105,17 @@ let pendingFirstLoginUser = null;
         'Xóa phiếu mượn',
         `Bạn có chắc chắn muốn xóa vĩnh viễn phiếu mượn "${b.ticketCode}" (${book.title} - ${user.fullName})? Thao tác này không thể hoàn tác!`,
         async () => {
-          // Nếu phiếu đang mượn hoặc chờ duyệt -> Trả lại số lượng tồn kho sách sẵn có
+          const actorName = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
+          if (isCloudConnected && supabaseClient) {
+            const { data: res, error } = await supabaseClient.rpc('staff_delete_borrow_atomic', {
+              p_borrow_id: borrowId,
+              p_actor_name: actorName
+            });
+            if (error || !res || !res.success) {
+              showNoticeModal('Lỗi xóa phiếu', res?.error || error?.message || 'Không thể xóa phiếu trên Cloud!');
+              return;
+            }
+          }
           if (b.status === 'borrowing' || b.status === 'pending') {
             const bk = db.books.find(x => x.id === b.bookId);
             if (bk) {
@@ -4642,6 +5187,29 @@ let pendingFirstLoginUser = null;
         pages: document.getElementById('formBookPages').value.trim(),
       };
 
+      if (isCloudConnected && supabaseClient) {
+        try {
+          const rowPayload = mapBookToDB(payload);
+          if (id) {
+            const { data, error } = await supabaseClient.from('books').update(rowPayload).eq('id', Number(id)).select().single();
+            if (error) throw error;
+            const idx = db.books.findIndex(x => x.id == id);
+            if (idx > -1) db.books[idx] = mapBookFromDB(data);
+          } else {
+            const { data, error } = await supabaseClient.from('books').insert(rowPayload).select().single();
+            if (error) throw error;
+            db.books.unshift(mapBookFromDB(data));
+          }
+          await saveDB('books');
+          closeBookModal();
+          showToast('Đã lưu thông tin sách lên Supabase Cloud thành công!');
+          return;
+        } catch (err) {
+          showNoticeModal('Lỗi lưu sách', err.message || 'Mã sách có thể bị trùng hoặc bạn chưa có quyền ghi!');
+          return;
+        }
+      }
+
       if (id) {
         const idx = db.books.findIndex(x => x.id == id);
         if (idx > -1) db.books[idx] = { ...db.books[idx], ...payload };
@@ -4664,6 +5232,13 @@ function deleteBook(id) {
         'Xóa đầu sách',
         `Bạn có chắc chắn muốn xóa sách "${b ? b.title : ''}" khỏi danh mục?`,
         async () => {
+          if (isCloudConnected && supabaseClient) {
+            const { error } = await supabaseClient.from('books').delete().eq('id', id);
+            if (error) {
+              showNoticeModal('Không thể xóa sách', error.message || 'Sách đang có lịch sử phiếu mượn liên kết trên CSDL!');
+              return;
+            }
+          }
           db.books = db.books.filter(x => x.id !== id);
           await saveDB('books');
           showToast('Đã xóa đầu sách.');
@@ -4732,9 +5307,39 @@ function deleteBook(id) {
         birthDate: document.getElementById('formUserBirthDate').value || '',
         email: document.getElementById('formUserEmail').value.trim(),
         phone: document.getElementById('formUserPhone').value.trim() || '',
-        password: document.getElementById('formUserPassword').value.trim() || '123456',
+        password: rawPassword,
         schoolYear: document.getElementById('formUserSchoolYear').value || '2026-2027'
       };
+
+      if (isCloudConnected && supabaseClient) {
+        try {
+          if (id) {
+            const idx = db.users.findIndex(x => x.id == id);
+            const oldUser = idx > -1 ? db.users[idx] : {};
+            const keepOldPass = payload.password === '********';
+            const merged = {
+              ...oldUser,
+              ...payload,
+              password: keepOldPass ? oldUser.password : hashPassword(payload.password)
+            };
+            const { data, error } = await supabaseClient.from('readers').update(mapReaderToDB(merged)).eq('id', Number(id)).select().single();
+            if (error) throw error;
+            if (idx > -1) db.users[idx] = mapReaderFromDB(data);
+          } else {
+            payload.password = hashPassword(payload.password);
+            const { data, error } = await supabaseClient.from('readers').insert(mapReaderToDB({ status: 'active', ...payload })).select().single();
+            if (error) throw error;
+            db.users.push(mapReaderFromDB(data));
+          }
+          await saveDB('users');
+          closeUserModal();
+          showToast('Đã lưu thông tin bạn đọc lên Supabase Cloud!');
+          return;
+        } catch (err) {
+          showNoticeModal('Lỗi lưu bạn đọc', err.message || 'Mã thẻ có thể bị trùng hoặc bạn chưa có quyền ghi!');
+          return;
+        }
+      }
 
       if (id) {
         const idx = db.users.findIndex(x => x.id == id);
@@ -4758,7 +5363,15 @@ function deleteBook(id) {
     async function toggleUserLock(id) {
       const u = db.users.find(x => x.id === id);
       if (!u) return;
-      u.status = u.status === 'active' ? 'locked' : 'active';
+      const nextStatus = u.status === 'active' ? 'locked' : 'active';
+      if (isCloudConnected && supabaseClient) {
+        const { error } = await supabaseClient.from('readers').update({ status: nextStatus }).eq('id', id);
+        if (error) {
+          showNoticeModal('Lỗi cập nhật', error.message || 'Không thể đổi trạng thái thẻ!');
+          return;
+        }
+      }
+      u.status = nextStatus;
       await saveDB('users');
       showToast(`Đã đổi trạng thái thẻ ${u.cardCode}`);
     }
@@ -4774,6 +5387,13 @@ function deleteBook(id) {
         'Xóa thẻ độc giả',
         `Xóa độc giả "${u ? u.fullName : ''}" (${u ? u.cardCode : ''}) khỏi hệ thống?`,
         async () => {
+          if (isCloudConnected && supabaseClient) {
+            const { error } = await supabaseClient.from('readers').delete().eq('id', id);
+            if (error) {
+              showNoticeModal('Lỗi xóa độc giả', error.message || 'Không thể xóa độc giả trên Cloud!');
+              return;
+            }
+          }
           db.users = db.users.filter(x => x.id !== id);
           await saveDB('users');
           showToast('Đã xóa độc giả.');
@@ -4813,9 +5433,23 @@ function deleteBook(id) {
     async function approvePendingBorrow(id) {
       const b = db.borrows.find(x => x.id === id);
       if (!b) return;
+      const actorName = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
+      if (isCloudConnected && supabaseClient) {
+        const { data: res, error } = await supabaseClient.rpc('approve_borrow_atomic', {
+          p_borrow_id: id,
+          p_due_date: null,
+          p_actor_name: actorName
+        });
+        if (error || !res || !res.success) {
+          showNoticeModal('Lỗi duyệt phiếu', res?.error || error?.message || 'Không thể duyệt phiếu trên Cloud!');
+          return;
+        }
+        b.borrowDate = res.borrow_date || new Date().toISOString().split('T')[0];
+      } else {
+        b.borrowDate = new Date().toISOString().split('T')[0];
+      }
       b.status = 'borrowing';
-      b.borrowDate = new Date().toISOString().split('T')[0];
-      b.processedBy = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
+      b.processedBy = actorName;
       const user = db.users.find(u => u.id === b.userId);
       const book = db.books.find(x => x.id === b.bookId);
       await saveDB('borrows');
@@ -4826,9 +5460,18 @@ function deleteBook(id) {
     async function markBorrowReturned(id) {
       const b = db.borrows.find(x => x.id === id);
       if (!b) return;
+      const actorName = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
+      if (isCloudConnected && supabaseClient) {
+        const { data: res, error } = await supabaseClient.rpc('return_book_atomic', { p_borrow_id: id });
+        if (error || !res || !res.success) {
+          showNoticeModal('Lỗi trả sách', res?.error || error?.message || 'Không thể nhận trả sách trên Cloud!');
+          return;
+        }
+        await supabaseClient.from('borrows').update({ returned_by_name: actorName }).eq('id', id);
+      }
       b.status = 'returned';
       b.returnDate = new Date().toISOString().split('T')[0];
-      b.returnedBy = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
+      b.returnedBy = actorName;
       const book = db.books.find(x => x.id === b.bookId);
       if (book) book.available = Math.min(book.total, book.available + 1);
       await saveDB('ALL');
@@ -4986,7 +5629,39 @@ async function sendOverdueEmail(id) {
       const book = db.books.find(b => b.id === bookId);
       if (!book) { showNoticeModal('Lỗi', 'Không tìm thấy thông tin sách!'); return; }
 
-      // Nếu là phiếu Đang mượn: trừ tồn kho sách sẵn có
+      const activeYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
+      const actorName = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
+
+      if (isCloudConnected && supabaseClient) {
+        try {
+          const { data: res, error } = await supabaseClient.rpc('staff_create_borrow_atomic', {
+            p_reader_id: userId,
+            p_book_id: bookId,
+            p_borrow_date: borrowDate,
+            p_due_date: dueDate,
+            p_return_date: returnDate,
+            p_status: status,
+            p_school_year: activeYear,
+            p_ticket_code: null,
+            p_processed_by_name: actorName
+          });
+          if (error || !res || !res.success) {
+            showNoticeModal('Lỗi lập phiếu', error?.message || res?.error || 'Không thể lưu phiếu mượn lên Cloud!');
+            return;
+          }
+          book.available = Number(res.remaining_available);
+          db.borrows.unshift(res.borrow);
+          await saveDB('ALL');
+          closeAdminBorrowModal();
+          showToast(status === 'returned' ? 'Đã lưu phiếu mượn trả trong quá khứ thành công!' : 'Đã lập phiếu mượn sách thành công!');
+          return;
+        } catch (err) {
+          showNoticeModal('Lỗi lập phiếu', err.message || 'Không thể kết nối Cloud!');
+          return;
+        }
+      }
+
+      // Nếu là phiếu Đang mượn: trừ tồn kho sách sẵn có (Offline)
       if (status === 'borrowing') {
         if (book.available <= 0) {
           showNoticeModal('Hết sách', `Sách "${book.title}" hiện đã hết bản có sẵn trong kho (0/${book.total})!`);
@@ -4995,7 +5670,6 @@ async function sendOverdueEmail(id) {
         book.available -= 1;
       }
 
-      const activeYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
       db.borrows.unshift({
        id: Date.now(),
        ticketCode: 'PM-' + Math.floor(1000 + Math.random() * 9000),
@@ -5006,7 +5680,7 @@ async function sendOverdueEmail(id) {
        dueDate,
        returnDate,
        status,
-       processedBy: db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư'
+       processedBy: actorName
      });
 
       await saveDB('ALL');
@@ -5033,16 +5707,18 @@ async function sendOverdueEmail(id) {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet);
         let added = 0, updated = 0;
+        const changedMap = new Map();
         rows.forEach((r, idx) => {
           const code = String(r.MaSach || r.Code || `BK-${Date.now()}-${idx}`).trim().toUpperCase();
           const title = String(r.TenSach || r.Title || '').trim();
           if (!title) return;
-          const qty = Number(r.SoLuong || r.Total || 1);
+          const qty = Math.max(0, Number(r.SoLuong || r.Total || 1));
           const existing = db.books.find(b => b.code.toUpperCase() === code);
           if (existing) {
             existing.total += qty; existing.available += qty; updated++;
+            changedMap.set(code, existing);
           } else {
-            db.books.unshift({
+            const newBook = {
               id: Date.now() + idx, code, title,
               author: String(r.TacGia || r.Author || 'Nhiều tác giả'),
               category: String(r.TheLoai || r.Category || 'Tin học & CNTT'),
@@ -5051,11 +5727,25 @@ async function sendOverdueEmail(id) {
               publishYear: String(r.NamXB || r.PublishYear || ''),
               pages: String(r.SoTrang || r.Pages || ''),
               total: qty, available: qty, featured: false, desc: ''
-            });
+            };
+            db.books.unshift(newBook);
+            changedMap.set(code, newBook);
             added++;
           }
         });
-        await saveDB('books');
+        if (isCloudConnected && supabaseClient && changedMap.size > 0) {
+          try {
+            showToast('Đang đồng bộ danh mục sách lên Supabase Cloud...');
+            await upsertInChunks('books', Array.from(changedMap.values()).map(mapBookToDB), 'code');
+            await syncFromCloud(false);
+          } catch (err) {
+            showNoticeModal('Lỗi nhập Excel', err.message || 'Không thể lưu sách lên Supabase Cloud!');
+            event.target.value = '';
+            return;
+          }
+        } else {
+          await saveDB('books');
+        }
         event.target.value = '';
         showToast(`Đã thêm mới ${added} sách, cộng dồn ${updated} sách!`);
       };
@@ -5108,24 +5798,6 @@ async function sendOverdueEmail(id) {
       selectedAdminUserIds.clear();
       renderAdminUsers();
       updateAdminUserSelectionUI();
-    }
-    function deleteSelectedAdminUsers() {
-      const count = selectedAdminUserIds.size;
-      if (count === 0) {
-        showNoticeModal('Chưa chọn độc giả', 'Vui lòng tích chọn ít nhất 1 độc giả cần xóa!');
-        return;
-      }
-      openCustomConfirmDialog(
-        'Xác nhận xóa hàng loạt',
-        `Bạn có chắc chắn muốn xóa vĩnh viễn ${count} độc giả đã chọn khỏi hệ thống thư viện? Thao tác này không thể hoàn tác!`,
-        async () => {
-          db.users = db.users.filter(u => !selectedAdminUserIds.has(Number(u.id)));
-          selectedAdminUserIds.clear();
-          await saveDB('users');
-          updateAdminUserSelectionUI();
-          showToast(`Đã xóa thành công ${count} độc giả khỏi hệ thống!`);
-        }
-      );
     }
     
     function updateAdminUserSelectionUI() {
@@ -5437,6 +6109,7 @@ async function sendOverdueEmail(id) {
         const defaultYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
         let count = 0;
         let updated = 0;
+        const changedMap = new Map();
 
         rows.forEach((r, idx) => {
           const cardCode = String(r.MaThe || r.CardCode || r['Mã thẻ'] || r['Mã Thẻ'] || r['Mã thẻ / Username'] || r['Mã học sinh'] || '').trim().toUpperCase();
@@ -5470,7 +6143,7 @@ async function sendOverdueEmail(id) {
           if (existingIdx > -1) {
             const u = db.users[existingIdx];
             const shouldResetPass = cleanPass !== '123456' || isDefaultReaderPassword(u.password);
-            db.users[existingIdx] = {
+            const updatedObj = {
               ...u,
               userType: parsedType || u.userType || getUserType(u),
               fullName,
@@ -5482,9 +6155,11 @@ async function sendOverdueEmail(id) {
               password: shouldResetPass ? hashPassword(cleanPass) : u.password,
               schoolYear: String(r.NamHoc || r.SchoolYear || r['Năm học'] || u.schoolYear || defaultYear).trim()
             };
+            db.users[existingIdx] = updatedObj;
+            changedMap.set(cardCode, updatedObj);
             updated++;
           } else {
-            db.users.push({
+            const newObj = {
               id: Date.now() + idx,
               cardCode,
               fullName,
@@ -5497,12 +6172,26 @@ async function sendOverdueEmail(id) {
               password: hashPassword(cleanPass),
               schoolYear: String(r.NamHoc || r.SchoolYear || r['Năm học'] || defaultYear).trim(),
               status: 'active'
-            });
+            };
+            db.users.push(newObj);
+            changedMap.set(cardCode, newObj);
             count++;
           }
         });
 
-        await saveDB('users');
+        if (isCloudConnected && supabaseClient && changedMap.size > 0) {
+          try {
+            showToast('Đang đồng bộ danh sách độc giả lên Supabase Cloud...');
+            await upsertInChunks('readers', Array.from(changedMap.values()).map(mapReaderToDB), 'card_code');
+            await syncFromCloud(false);
+          } catch (err) {
+            showNoticeModal('Lỗi nhập Excel', err.message || 'Không thể lưu độc giả lên Supabase Cloud!');
+            event.target.value = '';
+            return;
+          }
+        } else {
+          await saveDB('users');
+        }
         renderAdminUsers();
         renderAdminStats();
         showNoticeModal('Nhập thành công', `Đã cập nhật dữ liệu từ file Excel:\n- Độc giả thêm mới: ${count}\n- Độc giả cập nhật thông tin: ${updated}`);
@@ -5528,10 +6217,17 @@ async function sendOverdueEmail(id) {
             db.books = parsed.books;
             db.users = parsed.users.map(u => ({ ...u, schoolYear: u.schoolYear || '2026-2027' }));
             db.borrows = parsed.borrows || [];
-            await saveDB('ALL');
+            if (isCloudConnected && supabaseClient) {
+              showToast('Đang khôi phục Sách & Độc giả lên Supabase Cloud...');
+              if (db.books.length > 0) await upsertInChunks('books', db.books.map(mapBookToDB), 'code');
+              if (db.users.length > 0) await upsertInChunks('readers', db.users.map(mapReaderToDB), 'card_code');
+              await syncFromCloud(false);
+            } else {
+              await saveDB('ALL');
+            }
             showToast('Đã khôi phục và đồng bộ dữ liệu thành công!');
           }
-        } catch { showNoticeModal('Lỗi tập tin', 'File JSON sao lưu không hợp lệ!'); }
+        } catch (err) { showNoticeModal('Lỗi tập tin', err?.message || 'File JSON sao lưu không hợp lệ!'); }
       };
       reader.readAsText(file);
     }
@@ -5829,6 +6525,53 @@ async function sendOverdueEmail(id) {
           return;
         }
 
+        if (isCloudConnected && supabaseClient) {
+          if (!email || !email.includes('@')) {
+            showNoticeModal('Thiếu Email đăng nhập', 'Ở chế độ Cloud Supabase Auth, mỗi tài khoản Thủ thư cần có địa chỉ Email hợp lệ!');
+            return;
+          }
+          const staffPass = rawPassword || '123456';
+          if (staffPass.length < 6) {
+            showNoticeModal('Mật khẩu quá ngắn', 'Mật khẩu thủ thư phải có tối thiểu 6 ký tự!');
+            return;
+          }
+          try {
+            // Dùng client tạm không lưu session để không làm đăng xuất Super Admin hiện tại
+            const tempAuthClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+              auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+            });
+            const { data: signUpRes, error: signUpErr } = await tempAuthClient.auth.signUp({
+              email,
+              password: staffPass
+            });
+            if (signUpErr) {
+              showNoticeModal('Lỗi tạo tài khoản Auth', signUpErr.message || 'Không thể tạo user trong Supabase Auth!');
+              return;
+            }
+            const { data: insertedStaff, error: insErr } = await supabaseClient.from('staff_accounts').insert({
+              auth_user_id: signUpRes?.user?.id || null,
+              username,
+              full_name: fullName,
+              email,
+              phone,
+              role: 'librarian',
+              role_title: roleTitle,
+              permissions,
+              status: 'active'
+            }).select().single();
+            if (insErr) throw insErr;
+
+            db.staffAccounts.push(mapStaffFromDB(insertedStaff));
+            closeStaffModal();
+            renderAdminStaffList();
+            showToast(`Đã tạo tài khoản thủ thư ${fullName}!`);
+            return;
+          } catch (err) {
+            showNoticeModal('Lỗi tạo thủ thư', err.message || 'Không thể lưu tài khoản thủ thư lên Supabase!');
+            return;
+          }
+        }
+
         const newStaff = {
           id: Date.now(),
           username,
@@ -5846,16 +6589,31 @@ async function sendOverdueEmail(id) {
         const idx = db.staffAccounts.findIndex(s => s.id === Number(id));
         if (idx > -1) {
           const old = db.staffAccounts[idx];
-          const keepOldPass = rawPassword === '********';
-          db.staffAccounts[idx] = {
-            ...old,
-            fullName,
-            roleTitle,
-            email,
-            phone,
-            permissions,
-            password: keepOldPass ? old.password : hashPassword(rawPassword)
-          };
+          if (isCloudConnected && supabaseClient) {
+            const { data: updStaff, error: updErr } = await supabaseClient.from('staff_accounts').update({
+              full_name: fullName,
+              role_title: roleTitle,
+              email,
+              phone,
+              permissions
+            }).eq('id', Number(id)).select().single();
+            if (updErr) {
+              showNoticeModal('Lỗi cập nhật', updErr.message || 'Không thể cập nhật phân quyền trên Supabase!');
+              return;
+            }
+            db.staffAccounts[idx] = mapStaffFromDB(updStaff);
+          } else {
+            const keepOldPass = rawPassword === '********';
+            db.staffAccounts[idx] = {
+              ...old,
+              fullName,
+              roleTitle,
+              email,
+              phone,
+              permissions,
+              password: keepOldPass ? old.password : hashPassword(rawPassword)
+            };
+          }
           showToast(`Đã cập nhật thông tin và phân quyền cho ${fullName}!`);
         }
       }
@@ -5868,7 +6626,15 @@ async function sendOverdueEmail(id) {
     async function toggleStaffLock(staffId) {
       const s = (db.staffAccounts || []).find(x => x.id === staffId);
       if (!s) return;
-      s.status = s.status === 'active' ? 'locked' : 'active';
+      const nextStatus = s.status === 'active' ? 'locked' : 'active';
+      if (isCloudConnected && supabaseClient) {
+        const { error } = await supabaseClient.from('staff_accounts').update({ status: nextStatus }).eq('id', staffId);
+        if (error) {
+          showNoticeModal('Lỗi cập nhật', error.message || 'Không thể khóa/mở tài khoản trên Supabase!');
+          return;
+        }
+      }
+      s.status = nextStatus;
       await saveDB('settings');
       renderAdminStaffList();
       showToast(`Đã ${s.status === 'active' ? 'mở khóa' : 'tạm khóa'} tài khoản ${s.fullName}!`);
@@ -5882,6 +6648,13 @@ async function sendOverdueEmail(id) {
         'Xóa tài khoản thủ thư',
         `Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản thủ thư của "${s.fullName}" (${s.username}) khỏi hệ thống?`,
         async () => {
+          if (isCloudConnected && supabaseClient) {
+            const { error } = await supabaseClient.from('staff_accounts').delete().eq('id', staffId);
+            if (error) {
+              showNoticeModal('Lỗi xóa tài khoản', error.message || 'Không thể xóa tài khoản trên Supabase!');
+              return;
+            }
+          }
           db.staffAccounts = (db.staffAccounts || []).filter(x => x.id !== staffId);
           await saveDB('settings');
           renderAdminStaffList();
@@ -5912,6 +6685,37 @@ async function sendOverdueEmail(id) {
       const newPass = document.getElementById('staffNewPassInput').value.trim();
       const confirmPass = document.getElementById('staffConfirmNewPassInput').value.trim();
 
+      if (newPass.length < 6) {
+        showNoticeModal('Mật khẩu quá ngắn', 'Mật khẩu mới phải có tối thiểu 6 ký tự!');
+        return;
+      }
+
+      if (newPass !== confirmPass) {
+        showNoticeModal('Mật khẩu không khớp', 'Mật khẩu xác nhận không trùng khớp với mật khẩu mới!');
+        return;
+      }
+
+      if (isCloudConnected && supabaseClient) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user || !user.email) {
+          showNoticeModal('Lỗi tài khoản', 'Phiên đăng nhập Supabase Auth không hợp lệ!');
+          return;
+        }
+        const { error: verifyErr } = await supabaseClient.auth.signInWithPassword({ email: user.email, password: currentPass });
+        if (verifyErr) {
+          showNoticeModal('Sai mật khẩu hiện tại', 'Mật khẩu hiện tại không chính xác! Vui lòng nhập lại.');
+          return;
+        }
+        const { error: updErr } = await supabaseClient.auth.updateUser({ password: newPass });
+        if (updErr) {
+          showNoticeModal('Lỗi đổi mật khẩu', updErr.message || 'Không thể cập nhật mật khẩu trên Supabase Auth!');
+          return;
+        }
+        closeStaffChangePasswordModal();
+        showToast('Đã đổi mật khẩu thủ thư trên Supabase Auth thành công!');
+        return;
+      }
+
       const staff = (db.staffAccounts || []).find(s => s.id === db.currentUser.staffId || String(s.username).toUpperCase() === String(db.currentUser.username).toUpperCase());
       if (!staff) {
         showNoticeModal('Lỗi tài khoản', 'Không tìm thấy dữ liệu tài khoản thủ thư của bạn!');
@@ -5923,19 +6727,8 @@ async function sendOverdueEmail(id) {
         return;
       }
 
-      if (newPass.length < 6) {
-        showNoticeModal('Mật khẩu quá ngắn', 'Mật khẩu mới phải có tối thiểu 6 ký tự!');
-        return;
-      }
-
-      if (newPass !== confirmPass) {
-        showNoticeModal('Mật khẩu không khớp', 'Mật khẩu xác nhận không trùng khớp với mật khẩu mới!');
-        return;
-      }
-
-      // Cập nhật mật khẩu mới và băm SHA-256 an toàn
       staff.password = hashPassword(newPass);
-      saveSessionUser(db.currentUser); // Cập nhật lại chữ ký phiên đăng nhập
+      saveSessionUser(db.currentUser);
       await saveDB('settings');
 
       closeStaffChangePasswordModal();
@@ -6052,9 +6845,40 @@ async function sendOverdueEmail(id) {
         showNoticeModal('Đã hết lượt gia hạn', 'Mỗi phiếu mượn chỉ được gia hạn trực tuyến tối đa 1 lần (+7 ngày).');
         return;
       }
+
+      if (isCloudConnected && supabaseClient) {
+        if (db.currentUser?.role === 'reader') {
+          const cred = getSavedReaderCred();
+          const { data: res, error } = await supabaseClient.rpc('reader_renew_borrow', {
+            p_reader_id: db.currentUser.id,
+            p_password_hash: cred?.passHash || '',
+            p_plain_is_default: Boolean(cred?.isDefaultInput),
+            p_borrow_id: borrowId
+          });
+          if (error || !res || !res.success) {
+            showNoticeModal('Không thể gia hạn', res?.error || error?.message || 'Lỗi kết nối Cloud!');
+            return;
+          }
+          b.dueDate = res.dueDate;
+          b.renewed = true;
+          renderAll();
+          playScannerBeep('success');
+          showToast(`Đã gia hạn phiếu ${b.ticketCode} thêm 7 ngày (Hạn mới: ${b.dueDate})!`);
+          return;
+        }
+      }
+
       const currentDue = new Date(b.dueDate);
       currentDue.setDate(currentDue.getDate() + 7);
-      b.dueDate = currentDue.toISOString().split('T')[0];
+      const nextDue = currentDue.toISOString().split('T')[0];
+      if (isCloudConnected && supabaseClient && db.currentUser?.role === 'admin') {
+        const { error } = await supabaseClient.from('borrows').update({ due_date: nextDue, renewed: true }).eq('id', borrowId);
+        if (error) {
+          showNoticeModal('Lỗi gia hạn', error.message || 'Không thể cập nhật trên Cloud!');
+          return;
+        }
+      }
+      b.dueDate = nextDue;
       b.renewed = true;
       await saveDB('borrows');
       playScannerBeep('success');
@@ -6268,7 +7092,16 @@ async function sendOverdueEmail(id) {
       if (matchedTicket) {
         const reader = db.users.find(u => u.id === matchedTicket.userId);
         const book = db.books.find(x => x.id === matchedTicket.bookId);
+        const actorName = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
         if (matchedTicket.status === 'pending') {
+          if (isCloudConnected && supabaseClient) {
+            const { data: res, error } = await supabaseClient.rpc('approve_borrow_atomic', { p_borrow_id: matchedTicket.id, p_due_date: null, p_actor_name: actorName });
+            if (error || !res?.success) {
+              playScannerBeep('error');
+              showToast(error?.message || 'Lỗi duyệt phiếu trên Cloud!');
+              return;
+            }
+          }
           matchedTicket.status = 'borrowing';
           matchedTicket.borrowDate = new Date().toISOString().split('T')[0];
           await saveDB('borrows');
@@ -6276,6 +7109,15 @@ async function sendOverdueEmail(id) {
           logPosScan(code, 'MÃ PHIẾU', `Duyệt giao sách "${book ? book.title : ''}" cho ${reader ? reader.fullName : ''}`, 'success');
           showToast(`Đã duyệt phiếu ${matchedTicket.ticketCode}!`);
         } else if (matchedTicket.status === 'borrowing') {
+          if (isCloudConnected && supabaseClient) {
+            const { data: res, error } = await supabaseClient.rpc('return_book_atomic', { p_borrow_id: matchedTicket.id });
+            if (error || !res?.success) {
+              playScannerBeep('error');
+              showToast(error?.message || 'Lỗi thu hồi sách trên Cloud!');
+              return;
+            }
+            await supabaseClient.from('borrows').update({ returned_by_name: actorName }).eq('id', matchedTicket.id);
+          }
           matchedTicket.status = 'returned';
           matchedTicket.returnDate = new Date().toISOString().split('T')[0];
           if (book) book.available = Math.min(book.total, book.available + 1);
@@ -6310,12 +7152,33 @@ async function sendOverdueEmail(id) {
       focusScannerInput();
     }
 
+    async function posAtomicReturnTicket(ticket, book) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const actorName = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
+      if (isCloudConnected && supabaseClient) {
+        const { data: res, error } = await supabaseClient.rpc('return_book_atomic', { p_borrow_id: ticket.id });
+        if (error || !res?.success) {
+          playScannerBeep('error');
+          showToast(error?.message || 'Lỗi trả sách trên Cloud!');
+          return false;
+        }
+        await supabaseClient.from('borrows').update({ returned_by_name: actorName }).eq('id', ticket.id);
+      }
+      ticket.status = 'returned';
+      ticket.returnDate = todayStr;
+      ticket.returnedBy = actorName;
+      if (book) book.available = Math.min(book.total, book.available + 1);
+      await saveDB('ALL');
+      return true;
+    }
+
     async function handleScannedBookOnPos(book) {
       const loanDays = Number(document.getElementById('posDefaultLoanDays')?.value || 14);
       const dueObj = new Date();
       dueObj.setDate(dueObj.getDate() + loanDays);
       const dueDateStr = dueObj.toISOString().split('T')[0];
       const todayStr = new Date().toISOString().split('T')[0];
+      const actorName = db.currentUser ? `${db.currentUser.fullName} (${db.currentUser.username || 'Admin'})` : 'Thủ thư';
 
       // Chế độ 3: TRẢ SÁCH NHANH 1 BƯỚC (Không cần quét thẻ độc giả nếu chỉ có 1 người đang mượn cuốn này)
       if (posScannerMode === 'FAST_RETURN' || !posActiveReaderId) {
@@ -6328,10 +7191,8 @@ async function sendOverdueEmail(id) {
 
           if (targetBorrow) {
             const holder = db.users.find(u => u.id === targetBorrow.userId);
-            targetBorrow.status = 'returned';
-            targetBorrow.returnDate = todayStr;
-            book.available = Math.min(book.total, book.available + 1);
-            await saveDB('ALL');
+            const ok = await posAtomicReturnTicket(targetBorrow, book);
+            if (!ok) return;
             playScannerBeep('success');
             logPosScan(book.code, 'TRẢ SÁCH NHANH', `Nhận trả "${book.title}" từ ${holder ? holder.fullName : 'Độc giả'} (${targetBorrow.ticketCode})`, 'success');
             showToast(`Đã thu hồi sách "${book.title}"!`);
@@ -6354,11 +7215,9 @@ async function sendOverdueEmail(id) {
           if (activeBorrowsForBook.length === 1) {
             const singleBorrow = activeBorrowsForBook[0];
             const holder = db.users.find(u => u.id === singleBorrow.userId);
-            singleBorrow.status = 'returned';
-            singleBorrow.returnDate = todayStr;
-            book.available = Math.min(book.total, book.available + 1);
+            const ok = await posAtomicReturnTicket(singleBorrow, book);
+            if (!ok) return;
             posActiveReaderId = singleBorrow.userId;
-            await saveDB('ALL');
             playScannerBeep('success');
             logPosScan(book.code, 'TỰ ĐỘNG TRẢ SÁCH', `Nhận trả "${book.title}" từ ${holder ? holder.fullName : ''} (${singleBorrow.ticketCode})`, 'success');
             showToast(`Đã thu hồi sách "${book.title}" của ${holder ? holder.fullName : ''}!`);
@@ -6381,9 +7240,22 @@ async function sendOverdueEmail(id) {
       // Kiểm tra xem độc giả này có phiếu PENDING (đặt online) cho cuốn sách này không
       const pendingTicket = db.borrows.find(b => b.userId === reader.id && b.bookId === book.id && b.status === 'pending');
       if (pendingTicket && posScannerMode !== 'FAST_RETURN') {
+        if (isCloudConnected && supabaseClient) {
+          const { data: res, error } = await supabaseClient.rpc('approve_borrow_atomic', {
+            p_borrow_id: pendingTicket.id,
+            p_due_date: dueDateStr,
+            p_actor_name: actorName
+          });
+          if (error || !res?.success) {
+            playScannerBeep('error');
+            showToast(error?.message || 'Lỗi duyệt phiếu trên Cloud!');
+            return;
+          }
+        }
         pendingTicket.status = 'borrowing';
         pendingTicket.borrowDate = todayStr;
         pendingTicket.dueDate = dueDateStr;
+        pendingTicket.processedBy = actorName;
         await saveDB('borrows');
         if (reader.email) sendBorrowStatusEmail(reader, book, pendingTicket);
         playScannerBeep('success');
@@ -6395,10 +7267,8 @@ async function sendOverdueEmail(id) {
       // Kiểm tra xem độc giả này có đang MƯỢN (borrowing) cuốn sách này không -> Nếu ở chế độ SMART_POS thì tự động THU HỒI TRẢ SÁCH!
       const activeTicket = db.borrows.find(b => b.userId === reader.id && b.bookId === book.id && b.status === 'borrowing');
       if (activeTicket && posScannerMode === 'SMART_POS') {
-        activeTicket.status = 'returned';
-        activeTicket.returnDate = todayStr;
-        book.available = Math.min(book.total, book.available + 1);
-        await saveDB('ALL');
+        const ok = await posAtomicReturnTicket(activeTicket, book);
+        if (!ok) return;
         playScannerBeep('success');
         logPosScan(book.code, 'NHẬN TRẢ SÁCH', `${reader.fullName} đã trả sách "${book.title}" (Phiếu ${activeTicket.ticketCode})`, 'success');
         showToast(`Đã nhận trả sách "${book.title}" từ ${reader.fullName}!`);
@@ -6413,18 +7283,42 @@ async function sendOverdueEmail(id) {
         return;
       }
 
-      book.available -= 1;
-      const newTicket = {
-        id: Date.now(),
-        ticketCode: 'POS-' + Math.floor(1000 + Math.random() * 9000),
-        userId: reader.id,
-        bookId: book.id,
-        schoolYear: db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027',
-        borrowDate: todayStr,
-        dueDate: dueDateStr,
-        returnDate: null,
-        status: 'borrowing'
-      };
+      const activeYear = db.currentSchoolYear && db.currentSchoolYear !== 'ALL' ? db.currentSchoolYear : '2026-2027';
+      let newTicket = null;
+      if (isCloudConnected && supabaseClient) {
+        const { data: res, error } = await supabaseClient.rpc('staff_create_borrow_atomic', {
+          p_reader_id: reader.id,
+          p_book_id: book.id,
+          p_borrow_date: todayStr,
+          p_due_date: dueDateStr,
+          p_return_date: null,
+          p_status: 'borrowing',
+          p_school_year: activeYear,
+          p_ticket_code: 'POS-' + Math.floor(1000 + Math.random() * 9000),
+          p_processed_by_name: actorName
+        });
+        if (error || !res?.success) {
+          playScannerBeep('error');
+          logPosScan(book.code, 'LỖI CLOUD', error?.message || 'Không thể lập phiếu mượn trên Cloud!', 'error');
+          showToast(error?.message || 'Lỗi tạo phiếu trên Cloud!');
+          return;
+        }
+        book.available = Number(res.remaining_available);
+        newTicket = res.borrow;
+      } else {
+        book.available -= 1;
+        newTicket = {
+          id: Date.now(),
+          ticketCode: 'POS-' + Math.floor(1000 + Math.random() * 9000),
+          userId: reader.id,
+          bookId: book.id,
+          schoolYear: activeYear,
+          borrowDate: todayStr,
+          dueDate: dueDateStr,
+          returnDate: null,
+          status: 'borrowing'
+        };
+      }
       db.borrows.unshift(newTicket);
       await saveDB('ALL');
       playScannerBeep('success');
@@ -6965,6 +7859,56 @@ async function sendOverdueEmail(id) {
       const newEmail = sanitizeText(document.getElementById('secAdminEmail').value.trim());
       const newPass = document.getElementById('secAdminNewPass').value.trim();
 
+      if (isCloudConnected && supabaseClient) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user || !user.email) {
+          showNoticeModal('Lỗi phiên đăng nhập', 'Vui lòng đăng nhập lại tài khoản Quản trị trưởng!');
+          return;
+        }
+        const { error: verifyErr } = await supabaseClient.auth.signInWithPassword({ email: user.email, password: currPass });
+        if (verifyErr) {
+          showNoticeModal('Sai mật khẩu hiện tại', 'Mật khẩu Admin hiện tại không chính xác! Vui lòng kiểm tra lại.');
+          return;
+        }
+        if (newPass.length < 6) {
+          showNoticeModal('Mật khẩu mới quá ngắn', 'Mật khẩu Admin mới phải có ít nhất 6 ký tự để đảm bảo an toàn!');
+          return;
+        }
+        const { error: updAuthErr } = await supabaseClient.auth.updateUser({ password: newPass });
+        if (updAuthErr) {
+          showNoticeModal('Lỗi đổi mật khẩu', updAuthErr.message || 'Không thể cập nhật mật khẩu trên Supabase Auth!');
+          return;
+        }
+        const { error: updStaffErr } = await supabaseClient.from('staff_accounts').update({
+          username: newUsername || 'ADMIN',
+          full_name: newFullName || 'Quản Trị',
+          email: newEmail || user.email
+        }).eq('auth_user_id', user.id);
+        if (updStaffErr) {
+          showNoticeModal('Lỗi cập nhật hồ sơ', updStaffErr.message || 'Không thể cập nhật thông tin staff_accounts!');
+          return;
+        }
+
+        db.adminAccount.username = newUsername || 'ADMIN';
+        db.adminAccount.fullName = newFullName || 'Quản Trị';
+        db.adminAccount.email = newEmail || user.email;
+        try { localStorage.setItem('SMARTLIB_ADMIN_2FA_EMAIL', db.adminAccount.email); } catch (err) {}
+
+        saveSessionUser({
+          ...db.currentUser,
+          role: 'admin',
+          isSuperAdmin: true,
+          isStaff: false,
+          authUserId: user.id,
+          username: db.adminAccount.username,
+          fullName: db.adminAccount.fullName
+        });
+        await saveDB('settings');
+        closeSecurityCenterModal();
+        showToast('Đã cập nhật tài khoản, Email 2FA & mật khẩu Supabase Auth thành công!');
+        return;
+      }
+
       if (!verifyPassword(currPass, db.adminAccount.password)) {
         showNoticeModal('Sai mật khẩu hiện tại', 'Mật khẩu Admin hiện tại không chính xác! Vui lòng kiểm tra lại.');
         return;
@@ -7221,8 +8165,12 @@ async function sendOverdueEmail(id) {
       }
     }
 
-    function cancelAdmin2FAStep() {
+    async function cancelAdmin2FAStep() {
       pendingAdmin2FA = null;
+      if (pendingSupaStaffAuth && supabaseClient) {
+        try { await supabaseClient.auth.signOut(); } catch (e) {}
+        pendingSupaStaffAuth = null;
+      }
       stopAdmin2FATimer();
       switchAuthTab('login');
     }
@@ -7258,7 +8206,7 @@ async function sendOverdueEmail(id) {
         if (pendingAdmin2FA.attemptsLeft <= 0) {
           pendingAdmin2FA = null;
           stopAdmin2FATimer();
-          cancelAdmin2FAStep();
+          await cancelAdmin2FAStep();
           showNoticeModal('Khóa phiên xác thực', 'Bạn đã nhập sai mã OTP quá 5 lần. Phiên đăng nhập đã bị hủy để bảo vệ tài khoản Admin!');
           return;
         }
@@ -7271,6 +8219,13 @@ async function sendOverdueEmail(id) {
       stopAdmin2FATimer();
       playScannerBeep('success');
       await markCurrentDeviceAndIPTrusted(); // Ghi nhớ máy tính & IP này cho các lần sau
+
+      if (pendingSupaStaffAuth) {
+        const { authUser, staffRow } = pendingSupaStaffAuth;
+        pendingSupaStaffAuth = null;
+        await finalizeSupaAdminLogin(authUser, staffRow);
+        return;
+      }
 
       saveSessionUser({
         role: 'admin',
@@ -7328,10 +8283,13 @@ async function sendOverdueEmail(id) {
 
       // --- BỔ SUNG: Cập nhật thống kê Footer tự động ---
       if (document.getElementById('footerStatUsers')) {
-        const totalCopies = db.books.reduce((sum, b) => sum + (Number(b.total) || 0), 0);
-        document.getElementById('footerStatUsers').textContent = db.users.length.toLocaleString('vi-VN');
+        const totalCopies = db.books.reduce((sum, b) => sum + (Number(b.total) || 0), 0) || publicStatsCache.totalCopies || 0;
+        const isStaffAdmin = db.currentUser && db.currentUser.role === 'admin';
+        const displayReaders = isStaffAdmin ? db.users.length : (publicStatsCache.totalReaders || db.users.length);
+        const displayBorrows = isStaffAdmin ? db.borrows.length : (publicStatsCache.totalBorrows || db.borrows.length);
+        document.getElementById('footerStatUsers').textContent = displayReaders.toLocaleString('vi-VN');
         document.getElementById('footerStatBooks').textContent = totalCopies.toLocaleString('vi-VN');
-        document.getElementById('footerStatBorrows').textContent = db.borrows.length.toLocaleString('vi-VN');
+        document.getElementById('footerStatBorrows').textContent = displayBorrows.toLocaleString('vi-VN');
         
         // Bộ đếm lượt truy cập (Bắt đầu từ mốc 45,291 và tự tăng dần)
         let currentViews = parseInt(localStorage.getItem('smartlib_page_views') || 0);
@@ -7342,6 +8300,10 @@ async function sendOverdueEmail(id) {
     }
 
     function resetDemoData() {
+      if (isCloudConnected) {
+        showNoticeModal('Bảo vệ dữ liệu thực tế', 'Hệ thống đang kết nối Supabase Cloud (RLS). Nút Khôi phục dữ liệu mẫu được khóa để tránh ghi đè dữ liệu thư viện thật!');
+        return;
+      }
       openCustomConfirmDialog(
         'Khôi phục dữ liệu mẫu ban đầu',
         'Toàn bộ danh mục sách, độc giả và phiếu mượn sẽ quay về dữ liệu mẫu mặc định. Bạn có chắc chắn?',
