@@ -11,7 +11,7 @@ jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
-            - name: Query books table
+      - name: Query books table
         run: |
           curl -fsS "${{ secrets.SUPABASE_URL }}/rest/v1/books?select=id&limit=1" \
           -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
