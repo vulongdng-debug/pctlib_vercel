@@ -2127,8 +2127,8 @@
               <input type="password" id="secAdminCurrentPass" required placeholder="Nhập MK hiện tại..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-600" />
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu Admin mới *</label>
-              <input type="password" id="secAdminNewPass" required placeholder="Tối thiểu 6 ký tự..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-600" />
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu Admin mới (để trống nếu giữ nguyên)</label>
+              <input type="password" id="secAdminNewPass" placeholder="Tối thiểu 6 ký tự..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-600" />
             </div>
           </div>
           <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
@@ -2970,7 +2970,7 @@
               if (supaAdminRow) {
                 db.adminAccount.username = supaAdminRow.username || 'ADMIN';
                 db.adminAccount.fullName = supaAdminRow.full_name || 'Quản Trị';
-                db.adminAccount.email = supaAdminRow.email || db.adminAccount.email;
+                db.adminAccount.email = db.adminAccount.email || supaAdminRow.email;
               }
               db.staffAccounts = staffRows.filter(s => s.role !== 'super_admin').map(mapStaffFromDB).filter(Boolean);
             }
@@ -3403,10 +3403,17 @@
       }
 
       // ===== CHẾ ĐỘ CLOUD SUPABASE (RLS + SUPABASE AUTH + ATOMIC RPC) =====
+      if (!isCloudConnected && supabaseClient) {
+        await syncFromCloud(false);
+      }
       if (isCloudConnected && supabaseClient) {
         try {
           // 1. Kiểm tra xem có phải tài khoản Quản trị / Thủ thư không
-          const { data: staffEmail } = await supabaseClient.rpc('resolve_staff_login_email', { p_identifier: inputUser });
+          const { data: staffEmail, error: resolveErr } = await supabaseClient.rpc('resolve_staff_login_email', { p_identifier: inputUser });
+          if (resolveErr) {
+            showNoticeModal('Thiếu hàm RPC trên Supabase', `Lỗi: ${resolveErr.message}. Vui lòng chạy file 04_rpc_reader_and_extras.sql trong Supabase SQL Editor!`);
+            return;
+          }
 
           if (staffEmail) {
             const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({
@@ -3415,7 +3422,12 @@
             });
 
             if (authErr || !authData?.user) {
-              showNoticeModal('Đăng nhập không thành công', 'Sai mật khẩu tài khoản Quản trị / Thủ thư! Vui lòng kiểm tra lại.');
+              const errMsg = authErr?.message || '';
+              if (/not confirmed/i.test(errMsg)) {
+                showNoticeModal('Tài khoản chưa xác nhận Email', 'Tài khoản trên Supabase Auth chưa được kích hoạt (Email not confirmed). Hãy vào Supabase -> Authentication -> Users để Confirm hoặc chạy lệnh SQL xác nhận email!');
+              } else {
+                showNoticeModal('Đăng nhập không thành công', `Sai mật khẩu tài khoản Quản trị / Thủ thư (${staffEmail})! Chi tiết: ${errMsg || 'Invalid credentials'}`);
+              }
               return;
             }
 
@@ -3442,7 +3454,7 @@
               if (!trustStatus.trusted) {
                 pendingSupaStaffAuth = { authUser: authData.user, staffRow };
                 showToast(`⚠️ Phát hiện ${trustStatus.reason} — Yêu cầu xác thực OTP!`);
-                await initiateAdmin2FAStep(staffRow.email || db.adminAccount.email);
+                await initiateAdmin2FAStep(db.adminAccount.email || staffRow.email);
                 return;
               }
             }
@@ -7870,28 +7882,29 @@ async function sendOverdueEmail(id) {
           showNoticeModal('Sai mật khẩu hiện tại', 'Mật khẩu Admin hiện tại không chính xác! Vui lòng kiểm tra lại.');
           return;
         }
-        if (newPass.length < 6) {
-          showNoticeModal('Mật khẩu mới quá ngắn', 'Mật khẩu Admin mới phải có ít nhất 6 ký tự để đảm bảo an toàn!');
-          return;
-        }
-        const { error: updAuthErr } = await supabaseClient.auth.updateUser({ password: newPass });
-        if (updAuthErr) {
-          showNoticeModal('Lỗi đổi mật khẩu', updAuthErr.message || 'Không thể cập nhật mật khẩu trên Supabase Auth!');
-          return;
+        if (newPass) {
+          if (newPass.length < 6) {
+            showNoticeModal('Mật khẩu mới quá ngắn', 'Mật khẩu Admin mới phải có ít nhất 6 ký tự để đảm bảo an toàn!');
+            return;
+          }
+          const { error: updAuthErr } = await supabaseClient.auth.updateUser({ password: newPass });
+          if (updAuthErr) {
+            showNoticeModal('Lỗi đổi mật khẩu', updAuthErr.message || 'Không thể cập nhật mật khẩu trên Supabase Auth!');
+            return;
+          }
         }
         const { error: updStaffErr } = await supabaseClient.from('staff_accounts').update({
-          username: newUsername || 'ADMIN',
-          full_name: newFullName || 'Quản Trị',
-          email: newEmail || user.email
+          username: (newUsername || 'ADMIN').toUpperCase(),
+          full_name: newFullName || 'Quản Trị'
         }).eq('auth_user_id', user.id);
         if (updStaffErr) {
           showNoticeModal('Lỗi cập nhật hồ sơ', updStaffErr.message || 'Không thể cập nhật thông tin staff_accounts!');
           return;
         }
 
-        db.adminAccount.username = newUsername || 'ADMIN';
+        db.adminAccount.username = (newUsername || 'ADMIN').toUpperCase();
         db.adminAccount.fullName = newFullName || 'Quản Trị';
-        db.adminAccount.email = newEmail || user.email;
+        db.adminAccount.email = newEmail || db.adminAccount.email || user.email;
         try { localStorage.setItem('SMARTLIB_ADMIN_2FA_EMAIL', db.adminAccount.email); } catch (err) {}
 
         saveSessionUser({
