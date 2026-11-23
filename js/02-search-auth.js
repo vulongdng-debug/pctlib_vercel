@@ -575,8 +575,7 @@
       // Chuyển ngay về Trang chủ & cuộn lên đầu trang
       switchView('reader-home');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      showToast('Đã đăng xuất và trở về Trang chủ.');
-
+      
       if (isCloudConnected && supabaseClient) {
         try { await supabaseClient.auth.signOut(); } catch (e) {}
         try { await syncFromCloud(false); } catch (e) {}
