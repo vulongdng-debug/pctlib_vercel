@@ -5,6 +5,20 @@
       setTimeout(() => box.classList.add('hidden'), 3200);
     }
 
+    function togglePasswordVisibility(inputId, btnEl) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      if (btnEl) {
+        const icon = btnEl.querySelector('i');
+        if (icon) {
+          icon.className = isHidden ? 'ph ph-eye-slash text-base' : 'ph ph-eye text-base';
+        }
+        btnEl.title = isHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu';
+      }
+    }
+
     function getOverdueDays(borrow) {
       if (!borrow || borrow.status === 'returned' || borrow.status === 'pending') return 0;
       const user = db.users.find(u => u.id === borrow.userId);
@@ -575,7 +589,7 @@
       // Chuyển ngay về Trang chủ & cuộn lên đầu trang
       switchView('reader-home');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      
+
       if (isCloudConnected && supabaseClient) {
         try { await supabaseClient.auth.signOut(); } catch (e) {}
         try { await syncFromCloud(false); } catch (e) {}
