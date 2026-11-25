@@ -183,7 +183,7 @@
     }
 
     const READER_AUTH_KEY = 'SMARTLIB_READER_CRED';
-    let publicStatsCache = { totalBooks: 0, totalCopies: 0, totalReaders: 0, totalBorrows: 0 };
+    let publicStatsCache = { totalBooks: 0, totalCopies: 0, totalReaders: 0, totalBorrows: 0, totalViews: 0 };
     let pendingSupaStaffAuth = null;
 
     function getSavedReaderCred() {
@@ -579,6 +579,16 @@
       try {
         supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
         await restoreAuthSessionFromSupabase();
+        // Tăng đúng 1 lượt truy cập trên Supabase cho mỗi phiên mở tab trình duyệt
+        try {
+          if (!sessionStorage.getItem('SMARTLIB_VIEW_COUNTED')) {
+            const { data: newViews, error: viewErr } = await supabaseClient.rpc('increment_page_views');
+            if (!viewErr && typeof newViews === 'number') {
+              publicStatsCache.totalViews = newViews;
+            }
+            sessionStorage.setItem('SMARTLIB_VIEW_COUNTED', '1');
+          }
+        } catch (e) {}
         await syncFromCloud(false);
       } catch (err) {
         console.error('Không thể khởi tạo Supabase:', err);
@@ -622,8 +632,11 @@
             totalBooks: Number(statsRes.data.totalBooks) || db.books.length,
             totalCopies: Number(statsRes.data.totalCopies) || 0,
             totalReaders: Number(statsRes.data.totalReaders) || 0,
-            totalBorrows: Number(statsRes.data.totalBorrows) || 0
+            totalBorrows: Number(statsRes.data.totalBorrows) || 0,
+            totalViews: Number(statsRes.data.totalViews ?? settingsRes.data?.page_views ?? publicStatsCache.totalViews) || 0
           };
+        } else if (settingsRes.data && settingsRes.data.page_views !== undefined) {
+          publicStatsCache.totalViews = Number(settingsRes.data.page_views) || 0;
         }
 
         const session = sessionRes?.data?.session || null;

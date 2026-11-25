@@ -533,11 +533,11 @@
         document.getElementById('footerStatBooks').textContent = totalCopies.toLocaleString('vi-VN');
         document.getElementById('footerStatBorrows').textContent = displayBorrows.toLocaleString('vi-VN');
         
-        // Bộ đếm lượt truy cập (Bắt đầu từ mốc 45,291 và tự tăng dần)
-        let currentViews = parseInt(localStorage.getItem('smartlib_page_views') || 0);
-        currentViews += 1;
-        localStorage.setItem('smartlib_page_views', currentViews);
-        document.getElementById('footerStatViews').textContent = currentViews.toLocaleString('vi-VN');
+        // Hiển thị tổng lượt truy cập toàn hệ thống từ Supabase (không cộng lặp khi re-render)
+        const displayViews = isCloudConnected
+          ? (Number(publicStatsCache.totalViews) || 0)
+          : (parseInt(localStorage.getItem('smartlib_page_views') || '0', 10) || 0);
+        document.getElementById('footerStatViews').textContent = displayViews.toLocaleString('vi-VN');
       }
     }
 
