@@ -106,27 +106,27 @@
   </header>
 
   <!-- MAIN CONTENT AREA -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
     <!-- ==================== VIEW 1: READER HOME (PUBLIC OPAC) ==================== -->
-    <section id="view-reader-home" class="space-y-8">
+    <section id="view-reader-home" class="space-y-5">
       <!-- Hero Banner -->
-      <div class="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-2xl p-6 sm:p-10 text-white shadow-lg relative overflow-visible">
-        <div class="max-w-3xl relative z-20 space-y-4">
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/15 backdrop-blur-sm border border-white/20">
+      <div class="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-2xl p-4 sm:px-6 sm:py-5 text-white shadow-lg relative overflow-visible">
+        <div class="max-w-4xl relative z-20 space-y-2.5">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/15 backdrop-blur-sm border border-white/20">
             <i class="ph-fill ph-sparkle text-amber-300"></i> Không gian tri thức số trực tuyến
           </span>
-          <h2 class="text-2xl sm:text-4xl font-bold tracking-tight leading-tight">
+          <h2 class="text-lg sm:text-2xl font-bold tracking-tight leading-snug">
             Tra cứu kho sách & Đăng ký mượn trực tuyến nhanh chóng
           </h2>
-          <p class="text-blue-100 text-sm sm:text-base">
-            Tìm kiếm hàng ngàn đầu sách giáo khoa, tài liệu tham khảo, văn học và khoa học. Gõ từ khóa để nhận gợi ý tên sách hoặc tên tác giả theo thời gian thực.
+          <p class="text-blue-100 text-xs sm:text-sm">
+            Tìm kiếm hàng ngàn đầu sách giáo khoa, tài liệu tham khảo, văn học và khoa học theo thời gian thực.
           </p>
 
           <!-- ADVANCED SEARCH BOX WITH LIVE AUTOCOMPLETE DROPDOWN -->
-          <div class="pt-2 flex flex-col sm:flex-row gap-2 relative">
+          <div class="pt-1 flex flex-col sm:flex-row gap-2 relative">
             <div class="relative flex-1" id="searchBoxContainer">
-              <i class="ph ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg z-10"></i>
+              <i class="ph ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base z-10"></i>
               <input 
                 type="text" 
                 id="publicSearchInput" 
@@ -134,7 +134,7 @@
                 oninput="handleSearchInput(this.value)" 
                 onkeydown="handleSearchKeyDown(event)"
                 placeholder="Nhập tên sách, tác giả (VD: Tin học 12, Nguyễn Nhật Ánh, Nguyễn Vũ Long)..." 
-                class="w-full pl-10 pr-10 py-3.5 rounded-xl text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 shadow-md bg-white transition" 
+                class="w-full pl-10 pr-10 py-2.5 rounded-xl text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 shadow-md bg-white transition" 
               />
               <button 
                 id="clearSearchBtn" 
@@ -157,21 +157,21 @@
             </div>
 
             <!-- Filters -->
-            <select id="publicCategoryFilter" onchange="renderPublicBooks()" class="px-4 py-3.5 rounded-xl text-slate-700 text-sm bg-white font-medium focus:outline-none shadow-md">
+            <select id="publicCategoryFilter" onchange="renderPublicBooks()" class="px-3.5 py-2.5 rounded-xl text-slate-700 text-sm bg-white font-medium focus:outline-none shadow-md">
               <option value="ALL">Tất cả thể loại</option>
               <option value="Tin học & CNTT">Tin học & CNTT</option>
               <option value="Khoa học tự nhiên">Khoa học tự nhiên</option>
               <option value="Văn học & Nghệ thuật">Văn học & Nghệ thuật</option>
               <option value="Kỹ năng & Kinh tế">Kỹ năng & Kinh tế</option>
             </select>
-            <select id="publicStatusFilter" onchange="renderPublicBooks()" class="px-4 py-3.5 rounded-xl text-slate-700 text-sm bg-white font-medium focus:outline-none shadow-md">
+            <select id="publicStatusFilter" onchange="renderPublicBooks()" class="px-3.5 py-2.5 rounded-xl text-slate-700 text-sm bg-white font-medium focus:outline-none shadow-md">
               <option value="ALL">Mọi trạng thái</option>
               <option value="AVAILABLE">Còn sách mượn</option>
               <option value="OUT">Tạm hết</option>
             </select>
           </div>
         </div>
-        <i class="ph-duotone ph-books text-[180px] text-white/10 absolute -right-6 -bottom-10 pointer-events-none z-0"></i>
+        <i class="ph-duotone ph-books text-[110px] text-white/10 absolute -right-4 -bottom-6 pointer-events-none z-0"></i>
       </div>
 
       <!-- Featured Books Strip -->
@@ -1118,7 +1118,7 @@
       <!-- Bản quyền -->
       <div class="mt-8 pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
         <p>&copy; 2026 Bản quyền thuộc về Thư viện trường THPT Phan Châu Trinh.</p>
-        <p>Phát triển bởi L&K.</p>
+        <p>Phát triển bởi SmartLib Cloud.</p>
       </div>
     </div>
   </footer>
