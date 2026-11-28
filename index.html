@@ -171,7 +171,7 @@
             </select>
           </div>
         </div>
-        <i class="ph-duotone ph-books text-[110px] text-white/10 absolute -right-4 -bottom-6 pointer-events-none z-0"></i>
+        <i class="cute-book-icon cute-book-watermark text-[96px] absolute -right-3 -bottom-5 pointer-events-none z-0" aria-hidden="true"></i>
       </div>
 
       <!-- Featured Books Strip -->
@@ -189,7 +189,7 @@
       <div class="space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
           <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <i class="ph-bold ph-books text-blue-600 text-xl"></i> Danh Mục Toàn Bộ Sách
+            <i class="cute-book-icon text-xl" aria-hidden="true"></i> Danh Mục Toàn Bộ Sách
           </h3>
           <span id="publicBookCount" class="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">0 đầu sách</span>
         </div>
@@ -355,7 +355,7 @@
             <h3 id="statTotalBooks" class="text-2xl font-bold text-slate-900 mt-1">0 / 0</h3>
             <span class="text-xs text-emerald-600 font-medium" id="statAvailableBooks">Còn 0 bản sẵn sàng</span>
           </div>
-          <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl"><i class="ph-duotone ph-books"></i></div>
+          <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl"><i class="cute-book-icon" aria-hidden="true"></i></div>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
@@ -386,7 +386,7 @@
       <!-- Admin Tabs -->
       <div class="border-b border-slate-200 flex flex-wrap gap-2">
         <button onclick="switchAdminTab('books')" id="admin-tab-btn-books" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 flex items-center gap-2">
-          <i class="ph-bold ph-books"></i> 1. Quản lý Danh mục Sách (.xlsx/.csv)
+          <i class="cute-book-icon text-base" aria-hidden="true"></i> 1. Quản lý Danh mục Sách (.xlsx/.csv)
         </button>
         <button onclick="switchAdminTab('users')" id="admin-tab-btn-users" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 flex items-center gap-2">
           <i class="ph-bold ph-student"></i> 2. Quản lý Độc giả & Tài khoản (.xlsx/.csv)
@@ -1060,8 +1060,8 @@
         <!-- Cột 1: Giới thiệu -->
         <div class="space-y-4">
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-900/20">
-              <i class="ph-bold ph-books text-lg"></i>
+            <div class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shadow-md shadow-blue-900/20">
+              <i class="cute-book-icon text-lg" aria-hidden="true"></i>
             </div>
             <h3 class="text-base font-bold text-white">Thư viện trường THPT Phan Châu Trinh</h3>
           </div>
@@ -1101,7 +1101,7 @@
               <span id="footerStatUsers" class="font-bold text-emerald-400 text-lg">0</span>
             </div>
             <div class="flex items-center justify-between pt-3 border-t border-slate-700/50">
-              <span class="text-sm text-slate-400 flex items-center gap-1.5"><i class="ph-fill ph-books text-blue-400"></i> Tài liệu (bản in):</span>
+              <span class="text-sm text-slate-400 flex items-center gap-1.5"><i class="cute-book-icon text-base" aria-hidden="true"></i> Tài liệu (bản in):</span>
               <span id="footerStatBooks" class="font-bold text-blue-400 text-lg">0</span>
             </div>
             <div class="flex items-center justify-between pt-3 border-t border-slate-700/50">
@@ -1693,7 +1693,7 @@
             <i class="ph-bold ph-identification-card text-base"></i> 1. Quản Lý & Xuất Thẻ Độc Giả (08 Thẻ/A4)
           </button>
           <button type="button" id="btnPrintTabBooks" onclick="switchBarcodePrintTab('books')" class="px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-100 flex items-center gap-1.5">
-            <i class="ph-bold ph-books"></i> 2. Tem Mã Vạch Dán Sách
+            <i class="cute-book-icon text-base" aria-hidden="true"></i> 2. Tem Mã Vạch Dán Sách
           </button>
           <button type="button" onclick="openUserModal()" class="px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold flex items-center gap-1.5 transition">
             <i class="ph-bold ph-user-plus text-sm"></i> + Cấp Thẻ Mới
